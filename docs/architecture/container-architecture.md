@@ -1,5 +1,4 @@
 
-```markdown
 # Kubo — Container Architecture Diagram
 
 **Document ID:** KUBO-ARCH-CNT-001  
