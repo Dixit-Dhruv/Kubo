@@ -1,163 +1,53 @@
-# ADR-001: Adopt a Microservices Architecture
+# ADR-001: Microservices and Service Ownership
 
-- **Status:** Proposed
-- **Date:** 2026-10-16
+- **Status:** Accepted
+- **Decision date:** 2026-11-25
 - **Decision owner:** Project Owner
 
 ## Context
 
-Kubo is a self-hosted cloud platform with multiple distinct service
-domains: compute, object storage, queues, networking, and IAM.
-
-The project prioritizes independent service development, explicit
-service boundaries, infrastructure integration, and distributed
-systems engineering.
-
-A modular monolith would simplify the initial deployment but would
-provide fewer opportunities to design and operate independently
-deployable services.
+Kubo has distinct IAM, compute, networking, object-storage, and user-facing queue domains. The project is intended to explore infrastructure engineering and independently deployable services. Microservices increase operational and distributed-systems complexity, especially on a single self-hosted machine, but the project owner selected them for the first implementation.
 
 ## Decision
 
-Adopt a microservices architecture with independently deployable
-domain services.
-
-The proposed initial service boundaries are:
+Implement independently deployable services with explicit contracts and ownership. The first milestone contains:
 
 1. API Gateway
 2. IAM Service
-3. Compute Service
-4. Object Storage Service
-5. Queue Service
-6. Networking Service
-7. Operation Workers
+3. Compute Service and its worker
+4. Networking Service
+5. RabbitMQ for internal asynchronous work
 
-The exact deployment boundaries of workers and infrastructure
-adapters remain subject to detailed design.
+Object Storage and the user-facing Queue Service are deferred service domains. A management console is deferred; the first milestone is API-first.
 
-### Database Ownership Policy
+## Data ownership
 
-- Each service owns its logical database and schema.
-- Services must not directly query or modify another service's
-  private database.
-- Each service owns its database migrations and schema evolution.
-- Separate database credentials and least-privilege permissions
-  must be used for each service.
-- The initial deployment may use one shared database server.
-- Moving a service to a dedicated database server must not require
-  changes to its public API contract.
-- Cross-service workflows must use documented APIs or messaging
-  contracts rather than shared-table access.
+- Each service owns its authoritative data, schema, and migrations.
+- Services must not directly read or modify another service's private tables.
+- Development uses a separate SQLite store/file per service. Self-hosted deployments use PostgreSQL with separate service credentials and logical data boundaries.
+- A shared database server is an infrastructure choice, not permission to share tables.
+- Cross-service workflows use documented authenticated APIs or message contracts.
 
-A shared database server is an infrastructure optimization, not
-permission to share database ownership.
+## Consistency rules
 
-### Transaction and Consistency Policy
-
-- Use local database transactions for operations within a service.
-- Do not assume atomic transactions across service databases.
-- Design cross-service workflows to tolerate retries, timeouts,
-  partial failures and duplicate messages.
-- Evaluate the transactional outbox pattern for critical events.
-- Define consistency requirements for each cross-service workflow.
-- Use compensating actions or reconciliation where distributed
-  operations cannot be rolled back atomically.
-
-### Initial Database Infrastructure
-
-A shared PostgreSQL server is the leading candidate for relational
-metadata persistence, subject to a separate technology decision.
-
-The database implementation for queue persistence and object
-storage remains independently configurable. Not every service
-is required to use PostgreSQL for every data category.
-
-## Architectural Principles
-
-- Each service owns its business logic and authoritative data.
-- Services communicate through documented APIs or messaging
-  contracts.
-- Services do not directly access another service's private database.
-- Long-running operations support explicit status tracking.
-- Infrastructure providers are accessed through defined interfaces.
-- Service failures and retries must have documented behavior.
-- Local development must remain reproducible through a documented
-  deployment configuration.
+- Use local transactions inside a service.
+- Do not assume a transaction spans multiple services.
+- Design cross-service work for timeouts, duplicate messages, partial failures, retries, and compensation/reconciliation.
+- Each service remains authoritative for its resources and operation status.
 
 ## Consequences
 
-### Benefits
+**Benefits:** clear data ownership, independent service contracts, and a path to evolve domains separately.
 
-- Independent development and testing of service domains.
-- Clear ownership and API contracts.
-- Ability to evolve service implementations independently.
-- Practical experience with distributed systems and failure handling.
+**Costs:** more local processes and configuration, service authentication, correlated observability, distributed consistency work, and higher resource use.
 
-### Costs and Risks
+Mitigate these costs with a reproducible single-host deployment, explicit API/message schemas, bounded synchronous calls, durable operation state, and failure-focused tests.
 
-- More complex local deployment and debugging.
-- Additional service-to-service communication.
-- Distributed consistency and retry challenges.
-- More demanding authentication, observability, and integration tests.
-- Potential resource overhead on development machines.
+## Alternatives considered
 
-## Additional Consequences
+- **Modular monolith first:** simpler to build and operate, but not selected because the owner chose independently deployable services from the first release.
+- **Microservices with shared tables:** rejected because it violates service ownership and couples independent deployments.
 
-### Benefits
+## Implementation constraints
 
-- Clear data ownership and service boundaries.
-- Independent schema migrations and service evolution.
-- Reduced initial infrastructure overhead.
-- A path toward independent database scaling and deployment.
-- Better alignment with microservice data-management practices.
-
-### Costs and Risks
-
-- Distributed workflows require explicit consistency handling.
-- Shared database infrastructure remains a common failure domain.
-- Database connection pools require capacity planning.
-- Cross-service debugging requires correlated logs and operation IDs.
-- Backup and restoration procedures must account for dependencies
-  between services.
-- Independent database ownership does not automatically provide
-  tenant isolation or workload security.
-
-### Mitigations
-
-- Establish database ownership and access policies.
-- Use idempotent APIs and explicit lifecycle state transitions.
-- Define retry, timeout and compensation behavior.
-- Monitor database connections, latency and resource consumption.
-- Test partial failures and recovery procedures.
-- Document cross-service dependencies and restoration order.
-
-## Alternatives Considered
-
-### Modular Monolith
-
-Rejected as the primary architecture because independent service
-deployment is an explicit project objective.
-
-Its simpler development and operational model remains a useful
-comparison when deciding which components warrant separate processes.
-
-### Microservices with Shared Database Tables
-
-Rejected because direct cross-service database access would weaken
-service ownership and increase coupling.
-
-## Open Questions
-
-- Metadata database and per-service data isolation strategy.
-- Internal service authentication.
-- Synchronous versus asynchronous communication.
-- Internal provisioning job mechanism.
-- Local deployment topology.
-- Service discovery and configuration.
-- Failure recovery and observability requirements.
-
-## Review Criteria
-
-The decision can be approved when service boundaries, data ownership,
-communication contracts, deployment topology, and operational costs
-have been reviewed.
+Microservice boundaries do not require a separate physical database server per service. They do require separate ownership, credentials, migrations, and no cross-service table access.

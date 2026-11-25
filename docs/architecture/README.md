@@ -1,78 +1,41 @@
-# Kubo — System Architecture
+# Kubo Architecture
 
-**Document ID:** KUBO-ARCH-001  
-**Version:** 0.1  
-**Status:** Draft — Requirements Pending  
-**Owner:** Project Owner
+This directory is the architecture source of truth. The baseline records the decisions selected for the first implementation milestone while preserving later product capabilities as explicit future scope.
 
-## 1. Purpose
+## Reading order
 
-Define the architecture of Kubo before implementation begins.
+1. [Architecture requirements](architecture-requirement.md) — agreed scope, constraints, and milestone.
+2. [System architecture](system-architecture.md) — logical structure and lifecycle model.
+3. [System context](system-context.md), [container architecture](container-architecture.md), and [component architecture](component-architecture.md) — boundaries at different levels.
+4. [Data flows](data-flow.md), [deployment architecture](deployment-architecture.md), and [security architecture](security-architecture.md) — runtime behavior and cross-cutting concerns.
+5. [Architecture Decision Records](decisions/README.md) — rationale, alternatives, consequences, and status.
 
-The architecture must describe system boundaries, major
-components, responsibilities, communication paths, deployment
-topology, data flows, security boundaries, and key trade-offs.
+## Status conventions
 
-## 2. Architecture Objectives
+- **Accepted** means the project owner selected the decision as the implementation baseline.
+- **Proposed** means the direction is documented but needs a decision before implementation depends on it.
+- **Deferred** means intentionally out of the first milestone; do not treat it as an implicit commitment.
 
-- Define a coherent and extensible cloud platform.
-- Establish clear boundaries between services.
-- Separate cloud resource management from resource execution.
-- Define resource ownership and isolation requirements.
-- Identify external dependencies and infrastructure constraints.
-- Design for observable failures and recoverable operations.
-- Document architectural decisions and rejected alternatives.
+An accepted architectural baseline does not imply production readiness. Detailed API schemas, resource limits, retry tuning, and operational procedures must be specified and tested as their services are implemented.
 
-## 3. Architecture Documents
+## Change workflow
 
-| ID | Document | Status |
-|---|---|---|
-| ARCH-01 | System Context Diagram | Not started |
-| ARCH-02 | Container Architecture Diagram | Not started |
-| ARCH-03 | Component Architecture Diagram | Not started |
-| ARCH-04 | Deployment Architecture Diagram | Not started |
-| ARCH-05 | Data Flow Diagrams | Not started |
-| ARCH-06 | Security Architecture | Not started |
-| ARCH-07 | Architecture Decision Records | Not started |
-| ARCH-08 | Architecture Review Record | Not started |
+1. Identify whether the change alters a requirement, boundary, deployment assumption, or accepted ADR.
+2. For a material architectural change, update or add an ADR with context, decision, alternatives, consequences, and status.
+3. Update affected architecture diagrams and flows in the same change.
+4. Keep deferred capabilities and implementation-specific TBDs explicit; do not imply unsupported guarantees.
+5. Verify internal links, Mermaid diagrams, and status references before proposing the documentation change.
 
-## 4. Decisions Required
+## Document index
 
-- Product model: cloud emulator, local cloud platform, or hybrid
-- Initial service catalog and feature boundaries
-- Compute execution and isolation strategy
-- Storage and persistence strategy
-- Networking and connectivity model
-- API compatibility requirements
-- Deployment and supported host environments
-- User authentication and resource ownership model
-- Resource lifecycle and failure recovery
-- Monitoring, logging, and quota enforcement
-
-## 5. Architecture Review Criteria
-
-The architecture must demonstrate:
-
-1. Clear component responsibilities and ownership.
-2. Explicit interfaces and communication protocols.
-3. Defined resource lifecycle and failure behavior.
-4. Appropriate security and isolation boundaries.
-5. A feasible deployment topology for the target environment.
-6. Testability and observability.
-7. Documented alternatives and justified technology choices.
-
-## 6. Approval Gate
-
-Architecture status may move from Draft to Approved only after:
-
-- Product scope and architectural constraints are agreed upon.
-- Required diagrams have been reviewed.
-- Major technology decisions are recorded.
-- Security and operational risks are addressed.
-- The architecture is feasible within the project's constraints.
-
-## 7. Change History
-
-| Version | Change | Status |
-|---|---|---|
-| 0.1 | Initial architecture document structure | Draft |
+| Document | Purpose |
+|---|---|
+| [Requirements](architecture-requirement.md) | Product scope, first milestone, constraints, and readiness criteria |
+| [System architecture](system-architecture.md) | Logical services, interfaces, and lifecycle |
+| [System context](system-context.md) | Actors and system boundary |
+| [Container architecture](container-architecture.md) | Runtime processes and dependencies |
+| [Component architecture](component-architecture.md) | Responsibility and ownership boundaries |
+| [Data flows](data-flow.md) | Key synchronous and asynchronous workflows |
+| [Deployment architecture](deployment-architecture.md) | Development and self-hosted topologies |
+| [Security architecture](security-architecture.md) | Threats, trust boundaries, and controls |
+| [Decision records](decisions/README.md) | Decision status and rationale |

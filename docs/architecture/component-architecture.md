@@ -1,118 +1,96 @@
-# Kubo — Component Architecture Document
+# Kubo — Component Architecture
 
 **Document ID:** KUBO-ARCH-COMP-001  
-**Version:** 0.1  
-**Status:** Draft — Review Required  
-**Parent Document:** KUBO-ARCH-001
+**Version:** 1.0
+**Status:** Accepted baseline
 
----
-
-## 1. Purpose
-
-This document defines the internal logical components of Kubo, their responsibilities, interfaces, dependencies, and interaction patterns.
-
-The objective is to establish clear component boundaries before implementation begins.
-
-This document describes logical components. It does not require each component to run as an independent process, service, or container.
-
-## 2. Architectural Principles
-
-1. Separation of concerns between API handling, business logic, persistence, and infrastructure execution.
-2. Explicit interfaces between components.
-3. Centralized enforcement of authentication and authorization policies.
-4. Independent resource lifecycle management.
-5. Replaceable infrastructure providers.
-6. Durable tracking of asynchronous operations.
-7. Explicit error propagation and recovery behavior.
-8. No direct access to privileged infrastructure from the frontend.
-9. Testable business logic independent of host-specific implementations.
-10. Observable operations with correlation identifiers and audit events.
-
-## 3. Component Architecture Diagram
+This document describes logical responsibilities inside the independently deployable first-milestone services. It does not prescribe programming languages or frameworks.
 
 ```mermaid
 flowchart TB
-    UI["Management Console"]
+    Client["API Client"] --> Gateway["API Gateway"]
 
-    subgraph CONTROL["Kubo Control Plane"]
-        API["API Router"]
-        Auth["Authentication Component"]
-        Authz["Authorization Policy Engine"]
-        Validation["Request Validation"]
-        IAM["Identity and Access Manager"]
-        Compute["Compute Manager"]
-        Storage["Object Storage Manager"]
-        Queue["Queue Manager"]
-        Network["Network Manager"]
+    subgraph IAM["IAM Service"]
+        Accounts["Account Authentication"]
+        Orgs["Organization and Membership"]
+        Policies["Authorization Policy"]
+        IAMRepo["IAM Repository"]
+        Accounts --> IAMRepo
+        Orgs --> IAMRepo
+        Policies --> IAMRepo
+    end
+
+    subgraph COMPUTE["Compute Service"]
+        ComputeAPI["Compute API / Validation"]
+        Lifecycle["Lifecycle State Machine"]
         Operations["Operation Coordinator"]
-        Quota["Quota Manager"]
-        Events["Audit and Event Publisher"]
+        ComputeRepo["Compute Repository"]
+        Worker["Compute Worker"]
+        DockerPort["Compute Provider Interface"]
+        DockerAdapter["Docker Adapter"]
+        ComputeAPI --> Lifecycle
+        Lifecycle --> ComputeRepo
+        Lifecycle --> Operations
+        Worker --> ComputeRepo
+        Worker --> DockerPort
+        DockerPort --> DockerAdapter
     end
 
-    subgraph PORTS["Domain Interfaces"]
-        ComputePort["Compute Provider Interface"]
-        StoragePort["Object Storage Interface"]
-        QueuePort["Queue Backend Interface"]
-        NetworkPort["Network Provider Interface"]
+    subgraph NETWORK["Networking Service"]
+        NetworkAPI["Network API"]
+        Allocation["Network / Port Allocation"]
+        NetworkRepo["Networking Repository"]
+        NetworkAdapter["Host Network Adapter"]
+        NetworkAPI --> Allocation
+        Allocation --> NetworkRepo
+        Allocation --> NetworkAdapter
     end
 
-    subgraph ADAPTERS["Infrastructure Adapters"]
-        Container["Container Runtime Adapter"]
-        Firecracker["Firecracker Adapter - Future"]
-        ObjectBackend["Object Storage Adapter"]
-        QueueBackend["Queue Backend Adapter"]
-        NetworkBackend["Network Backend Adapter"]
-    end
+    Gateway --> Accounts
+    Gateway --> ComputeAPI
+    Gateway --> NetworkAPI
+    ComputeAPI -->|"Authorize subject + organization + action"| Policies
+    Worker -->|"Internal authenticated API"| NetworkAPI
+    Operations --> Broker[("RabbitMQ")]
+    Broker --> Worker
+    DockerAdapter --> Docker["Docker Engine"]
 
-    subgraph PERSISTENCE["Persistence Components"]
-        Repositories["Repository Layer"]
-        Metadata[("Metadata Database")]
-        ObjectData[("Object Data Store")]
-        QueueData[("Queue Persistence")]
-    end
+    FutureStorage["Object Storage Service — later"]
+    FutureQueue["User-facing Queue Service — later"]
+```
 
-    UI --> API
-    API --> Auth
-    API --> Validation
-    Auth --> IAM
-    API --> Authz
-    Authz --> IAM
+## Ownership rules
 
-    API --> Compute
-    API --> Storage
-    API --> Queue
-    API --> Network
+### API Gateway
 
-    Compute --> Quota
-    Compute --> Operations
-    Storage --> Quota
-    Queue --> Operations
-    Network --> Quota
+- Routes external requests and applies common request-level limits and correlation identifiers.
+- Does not become the only authorization boundary and does not own domain data.
+- Does not expose Docker, host-network, database, or RabbitMQ administration interfaces to clients.
 
-    Compute --> ComputePort
-    Storage --> StoragePort
-    Queue --> QueuePort
-    Network --> NetworkPort
+### IAM Service
 
-    ComputePort --> Container
-    ComputePort -.-> Firecracker
-    StoragePort --> ObjectBackend
-    QueuePort --> QueueBackend
-    NetworkPort --> NetworkBackend
+- Owns accounts, organizations, memberships, role assignments, and authentication records.
+- Establishes a trusted user identity and organization scope.
+- Evaluates or supplies authorization decisions through an authenticated contract.
+- Does not own compute or network resource state.
 
-    Operations --> Repositories
-    IAM --> Repositories
-    Compute --> Repositories
-    Storage --> Repositories
-    Queue --> Repositories
-    Network --> Repositories
+### Compute Service
 
-    Repositories --> Metadata
-    ObjectBackend --> ObjectData
-    QueueBackend --> QueueData
+- Owns compute resource metadata, desired and observed lifecycle state, operation status, and image policy.
+- Validates lifecycle transitions and organization ownership before accepting work.
+- Uses the Docker provider interface; the domain lifecycle does not depend on Docker-specific API behavior.
+- Executes privileged Docker operations only through its isolated adapter/worker boundary.
 
-    Compute --> Events
-    Storage --> Events
-    Queue --> Events
-    Network --> Events
-    IAM --> Events
+### Networking Service
+
+- Owns logical network configuration and address/port allocations.
+- Validates organization scope and applies host-specific networking through a bounded adapter.
+- Does not assume future Firecracker and Docker networking are interchangeable.
+
+### Worker and internal messaging
+
+- Workers act under a distinct service identity and preserve initiating-user, organization, resource, and operation attribution.
+- Messages are untrusted input: consumers validate schema, operation state, and authorization context.
+- Consumers are idempotent and report failures; RabbitMQ delivery alone does not establish authorization or successful completion.
+
+Object Storage and the user-facing Queue Service are outside the first milestone and must receive independent contracts and ownership boundaries before implementation.

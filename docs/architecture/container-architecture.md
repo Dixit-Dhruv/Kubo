@@ -1,83 +1,66 @@
-
-# Kubo — Container Architecture Diagram
+# Kubo — Container Architecture
 
 **Document ID:** KUBO-ARCH-CNT-001  
-**Version:** 0.1  
-**Status:** Draft — Technology Decisions Pending
+**Version:** 1.0
+**Status:** Accepted baseline
 
-## 1. Purpose
-
-Describe the proposed logical applications, services, data stores and infrastructure interfaces that make up Kubo.
-
-In the C4 model, a container is an independently executable application or data store. It does not necessarily mean a Docker container.
-
-The diagram describes logical boundaries. It does not yet establish which components run as separate processes or deployment units.
-
-## 2. Container Diagram
+In this C4 view, a container means a deployable application or data store, not necessarily a Docker container. The selected first-milestone services are independently deployable.
 
 ```mermaid
 flowchart TB
-    User["User / Administrator"]
     Client["API Client"]
+    Proxy["TLS reverse proxy / ingress"]
 
-    subgraph PLATFORM["Kubo Platform"]
-        subgraph PRESENTATION["Presentation Layer"]
-            UI["Management Console"]
-        end
-
-        subgraph CONTROL["Control Plane"]
-            API["API Layer"]
-            IAM["IAM Service"]
-            Coordinator["Operation Coordinator"]
-            Compute["Compute Service"]
-            ObjectStorage["Object Storage Service"]
-            Queue["Queue Service"]
-            Networking["Networking Service"]
-        end
-
-        subgraph DATA["Persistence Layer"]
-            Metadata[("Metadata Store\nTechnology TBD")]
-            Objects[("Object Storage Backend\nTechnology TBD")]
-            Messages[("Queue Persistence\nTechnology TBD")]
-        end
+    subgraph APP["Kubo application services"]
+        Gateway["API Gateway"]
+        IAM["IAM Service"]
+        ComputeAPI["Compute API"]
+        ComputeWorker["Compute Worker"]
+        Network["Networking Service"]
     end
 
-    subgraph EXECUTION["Host Infrastructure"]
-        Provider["Compute Provider Interface"]
-        Docker["Container Runtime Adapter"]
-        Firecracker["Firecracker Adapter\nFuture Linux/KVM"]
-        Runtime["Container Runtime"]
-        MicroVM["Firecracker Runtime"]
-        HostNetwork["Host Networking"]
+    Broker[("RabbitMQ\ninternal jobs only")]
+    IAMDB[("IAM-owned store\nSQLite dev / PostgreSQL deploy")]
+    ComputeDB[("Compute-owned store\nSQLite dev / PostgreSQL deploy")]
+    NetworkDB[("Networking-owned store\nSQLite dev / PostgreSQL deploy")]
+
+    subgraph HOST["Linux host boundary"]
+        Adapter["Restricted compute adapter"]
+        Docker["Docker Engine"]
+        Volumes[("Persistent host volumes")]
+        HostNet["Host firewall / networking"]
     end
 
-    User -->|"Uses console"| UI
-    Client -->|"Custom API requests"| API
-    UI -->|"HTTPS requests"| API
+    Client -->|"HTTPS"| Proxy
+    Proxy --> Gateway
+    Gateway --> IAM
+    Gateway --> ComputeAPI
+    Gateway --> Network
+    IAM --> IAMDB
+    ComputeAPI --> ComputeDB
+    Network --> NetworkDB
+    ComputeAPI -->|"Durable internal work"| Broker
+    Broker --> ComputeWorker
+    ComputeWorker --> ComputeDB
+    ComputeWorker --> Adapter
+    Adapter -->|"Privileged host API; isolated"| Docker
+    ComputeWorker --> Network
+    Docker --> Volumes
+    Network --> HostNet
 
-    API -->|"Authenticate and authorize"| IAM
-    API -->|"Resource operations"| Compute
-    API -->|"Object operations"| ObjectStorage
-    API -->|"Queue operations"| Queue
-    API -->|"Network operations"| Networking
+    ObjectStorage["Object Storage Service\nlater milestone"]
+    UserQueue["User-facing Queue Service\nlater milestone"]
+    Firecracker["Firecracker provider\nfuture Linux/KVM"]
+    ObjectStorage -.-> Volumes
+    UserQueue -.-> Broker
+    ComputeWorker -.-> Firecracker
+```
 
-    IAM <-->|"Identity and permissions"| Metadata
-    Compute <-->|"Resource metadata and state"| Metadata
-    ObjectStorage <-->|"Object metadata"| Metadata
-    Queue <-->|"Queue metadata"| Metadata
-    Networking <-->|"Network configuration"| Metadata
+## Data ownership and communication
 
-    ObjectStorage -->|"Read and write object data"| Objects
-    Queue -->|"Persist and retrieve messages"| Messages
-
-    Compute -->|"Provisioning requests"| Coordinator
-    Coordinator -->|"Schedule execution operations"| Provider
-    Provider -->|"Container operations"| Docker
-    Provider -.->|"Future provider"| Firecracker
-
-    Docker --> Runtime
-    Firecracker --> MicroVM
-
-    Networking -->|"Configure connectivity"| HostNetwork
-    Docker -.->|"Runtime networking integration"| HostNetwork
-    Firecracker -.->|"Guest networking integration"| HostNetwork
+- IAM, Compute, and Networking each own their data store and migrations.
+- Services use synchronous, authenticated HTTP for bounded cross-service requests and RabbitMQ for asynchronous work.
+- Services never query another service's private database.
+- RabbitMQ is not the user-facing Queue Service and does not own resource state.
+- The privileged Docker adapter is isolated from public API traffic. Access to the Docker Engine is a host-level trust boundary.
+- The dotted components are not part of the first milestone. The user-facing Queue Service must have separate contracts, authorization, and operational policies if it later shares broker technology.

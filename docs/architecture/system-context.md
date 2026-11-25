@@ -1,42 +1,47 @@
-# Kubo — System Context Diagram
+# Kubo — System Context
 
 **Document ID:** KUBO-ARCH-CTX-001  
-**Version:** 0.1  
-**Status:** Draft
+**Version:** 1.0
+**Status:** Accepted baseline
 
-## 1. Purpose
+## Purpose
 
-This diagram defines Kubo's external actors, system boundary and principal relationships with host infrastructure.
-
-It does not prescribe the internal service decomposition or deployment topology.
-
-## 2. System Context
+This view shows Kubo's users, API clients, system boundary, and infrastructure that Kubo operates. It does not show internal service deployment.
 
 ```mermaid
-flowchart TB
-    Developer["Developer / Cloud Learner"]
-    Admin["Kubo Administrator"]
+flowchart LR
+    User["User / Organization Member"]
+    Admin["Kubo Operator"]
     Client["API Client / Automation"]
 
     subgraph KUBO["Kubo Platform"]
-        Console["Management Console"]
-        API["Kubo Custom API"]
-        Services["Cloud Resource Services"]
+        Gateway["Kubo API Gateway"]
+        IAM["IAM Service"]
+        Compute["Compute Service"]
+        Network["Networking Service"]
+        Broker["Internal RabbitMQ"]
     end
 
-    subgraph HOST["User-Controlled Infrastructure"]
-        Compute["Compute Runtime"]
-        Storage["Persistent Storage"]
-        Network["Host Networking"]
+    subgraph HOST["Operator-Controlled Linux Host"]
+        Docker["Docker Engine"]
+        Disk["Persistent host storage"]
+        Firewall["Host networking and firewall"]
     end
 
-    Developer -->|"Manages resources"| Console
-    Admin -->|"Configures users and permissions"| Console
-    Client -->|"HTTPS / API requests"| API
+    User -->|"Uses custom API"| Gateway
+    Admin -->|"Configures platform and approved images"| Gateway
+    Client -->|"HTTPS / custom API"| Gateway
+    Gateway --> IAM
+    Gateway --> Compute
+    Gateway --> Network
+    Compute -->|"Internal lifecycle work"| Broker
+    Broker -->|"Consumed by compute worker"| Compute
+    Compute -->|"Privileged adapter boundary"| Docker
+    Compute --> Disk
+    Network --> Firewall
+    Docker --> Firewall
+```
 
-    Console -->|"Resource operations"| API
-    API -->|"Authorized requests"| Services
+The first milestone has no management console. Users and administrators use the custom API and its documented client interfaces. Object Storage, the user-facing Queue Service, and Firecracker are later capabilities.
 
-    Services -->|"Provision and manage workloads"| Compute
-    Services -->|"Persist resource data and objects"| Storage
-    Services -->|"Configure workload connectivity"| Network
+Kubo does not promise AWS API compatibility. Organization authorization is enforced by Kubo services; the host operator remains trusted to administer the Linux host and Docker Engine.

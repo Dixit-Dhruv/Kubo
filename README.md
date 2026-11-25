@@ -1,54 +1,63 @@
 # Kubo
 
-**A self-hosted cloud platform inspired by AWS.**
+**A self-hosted, AWS-inspired platform for managing infrastructure on your own machines.**
 
-Kubo aims to provide a practical environment for learning and
-experimenting with cloud infrastructure without requiring paid
-public-cloud resources for its core functionality.
+Kubo provides custom APIs for provisioning and operating local compute workloads and related cloud-style resources. It is intended for learning and experimenting with infrastructure engineering without requiring paid public-cloud services for core functionality.
 
-The project will explore cloud resource provisioning, lifecycle
-management, networking, storage, access control, and observability.
+Kubo is not a complete AWS emulator and does not promise AWS API or SDK compatibility.
 
-## Project Status
+## Project status
 
-**Current phase:** System Architecture and Design
+**Current phase:** Architecture baseline established; preparing the first implementation milestone.
 
-Implementation has not started. Architecture and requirements are
-being documented and reviewed before development begins.
+The architecture baseline and implementation scope are documented. Detailed API contracts and some operational policies will be specified alongside the first services.
 
-## Design Principles
+## First implementation milestone
 
-- Local-first execution and cost awareness
-- Explicit resource lifecycle management
-- Modular and replaceable service implementations
-- Security and resource isolation by design
-- Documented APIs and architectural decisions
-- Automated verification and operational visibility
+The first milestone is API-first and focuses on:
 
-These are initial design principles and will be refined during
-requirements and architecture review.
+- IAM: native Kubo accounts, organizations, membership, and authorization.
+- Compute: asynchronous lifecycle management of Docker containers.
+- Networking: the connectivity required by managed compute resources.
+- A self-hosted Linux deployment, with Windows development supported through Docker Desktop/WSL2.
+
+Object storage and the user-facing Queue Service are later milestones. RabbitMQ is an internal platform dependency for asynchronous operations and is not the user-facing Queue Service.
+
+## Architecture baseline
+
+- Independently deployable services with explicit ownership of data and contracts.
+- SQLite for development and tests; PostgreSQL for self-hosted deployments.
+- Organization-owned resources, with users accessing them through membership and permissions.
+- Native Kubo account authentication; security controls and remaining protocol details are documented in the security architecture.
+- Docker as the initial compute runtime; Firecracker is a possible future provider for compatible Linux/KVM hosts.
+- Durable operation records and RabbitMQ-backed asynchronous work.
+- Local filesystem storage for the initial object-storage backend.
+
+These choices and their consequences are recorded in [Architecture Decisions](docs/architecture/decisions/README.md).
 
 ## Documentation
 
+Start with the [architecture index and workflow](docs/architecture/README.md), then read the [system architecture](docs/architecture/system-architecture.md) and [implementation requirements](docs/architecture/architecture-requirement.md).
+
 | Document | Purpose |
 |---|---|
-| System Architecture | Overall system structure and boundaries |
-| System Context | Kubo and its external actors and dependencies |
-| Container Architecture | Deployable applications and infrastructure |
-| Component Architecture | Internal responsibilities and interfaces |
-| Deployment Architecture | Host environment and runtime topology |
-| Data Flow | Interactions between services and resources |
-| Security Architecture | Trust boundaries and security controls |
-| Architecture Decisions | Alternatives, rationale, and consequences |
+| [System context](docs/architecture/system-context.md) | Actors, platform boundary, and external infrastructure |
+| [Container architecture](docs/architecture/container-architecture.md) | Deployable services and infrastructure dependencies |
+| [Component architecture](docs/architecture/component-architecture.md) | Responsibilities and service boundaries |
+| [Deployment architecture](docs/architecture/deployment-architecture.md) | Windows development and Linux self-hosting |
+| [Data flows](docs/architecture/data-flow.md) | Authentication, organization access, and compute lifecycle |
+| [Security architecture](docs/architecture/security-architecture.md) | Trust boundaries, threats, and required controls |
+| [Architecture decisions](docs/architecture/decisions/README.md) | Accepted decisions and remaining proposals |
 
-## Current Scope
+## Design principles
 
-The service catalog, execution backend, deployment model, and
-compatibility requirements are awaiting architectural decisions.
+- Local-first execution and cost awareness.
+- Explicit resource ownership and lifecycle management.
+- Least privilege and tenant isolation by design.
+- Replaceable infrastructure providers with honest capability boundaries.
+- Durable, observable operations with explicit failure behavior.
+- Documented APIs, decisions, and verification.
 
 ## Contributing
 
-All significant architectural decisions should be documented
-and reviewed before implementation.
-
-See `docs/architecture/README.md` for the design workflow.
+Keep implementation consistent with the accepted architecture decisions. Propose changes that alter a recorded decision through an ADR before or alongside the implementation change.
