@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
@@ -10,20 +11,56 @@ from sqlalchemy.orm import Session
 
 from kubo_iam.database import get_db
 from kubo_iam.dependencies import AuthContext, OWNER_ADMIN, get_auth_context, get_current_user, require_membership
-from kubo_iam.models import Membership, MembershipRole, Organization, User
+from kubo_iam.models import Membership, MembershipRole, Organization, ServiceCredential, User
 from kubo_iam.schemas import (
+    ComputeAuthorizationRequest,
+    ComputeAuthorizationResponse,
     LoginRequest,
     MemberResponse,
     MembershipUpsert,
     OrganizationCreate,
     OrganizationResponse,
+    ServiceAuthorizationRequest,
+    ServiceAuthorizationResponse,
     TokenResponse,
     UserResponse,
 )
-from kubo_iam.security import create_api_token, normalize_email, verify_password
+from kubo_iam.security import create_api_token, hash_service_token, normalize_email, verify_password
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1")
+internal_router = APIRouter(prefix="/internal/v1", include_in_schema=False)
+service_bearer_scheme = HTTPBearer(auto_error=False)
+COMPUTE_AUTHORIZATION_SERVICES = {"compute-api", "compute-worker"}
+
+
+def _require_service_scope(
+    credentials: HTTPAuthorizationCredentials | None,
+    session: Session,
+    scope: str,
+) -> ServiceCredential:
+    unauthorized = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid service credential.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    if (
+        credentials is None
+        or credentials.scheme.lower() != "bearer"
+        or not credentials.credentials.isascii()
+    ):
+        raise unauthorized
+
+    credential = session.scalar(
+        select(ServiceCredential).where(
+            ServiceCredential.token_hash == hash_service_token(credentials.credentials)
+        )
+    )
+    if credential is None or credential.revoked_at is not None:
+        raise unauthorized
+    if scope not in credential.scopes:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Service scope is not granted.")
+    return credential
 
 
 @router.post("/auth/login", response_model=TokenResponse)
@@ -57,6 +94,47 @@ def logout(
 @router.get("/users/me", response_model=UserResponse)
 def get_me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@internal_router.post(
+    "/service-auth/authorize",
+    response_model=ServiceAuthorizationResponse,
+)
+def authorize_service_call(
+    payload: ServiceAuthorizationRequest,
+    credentials: HTTPAuthorizationCredentials | None = Depends(service_bearer_scheme),
+    session: Session = Depends(get_db),
+) -> ServiceAuthorizationResponse:
+    credential = _require_service_scope(credentials, session, payload.scope)
+    return ServiceAuthorizationResponse(service_id=credential.service_id)
+
+
+@internal_router.post(
+    "/user-auth/authorize",
+    response_model=ComputeAuthorizationResponse,
+)
+def authorize_compute_action(
+    payload: ComputeAuthorizationRequest,
+    credentials: HTTPAuthorizationCredentials | None = Depends(service_bearer_scheme),
+    session: Session = Depends(get_db),
+) -> ComputeAuthorizationResponse:
+    credential = _require_service_scope(credentials, session, "iam:authorize")
+    if credential.service_id not in COMPUTE_AUTHORIZATION_SERVICES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Service cannot request Compute decisions.")
+    membership = session.scalar(
+        select(Membership)
+        .join(User, User.id == Membership.user_id)
+        .where(
+            Membership.organization_id == payload.organization_id,
+            Membership.user_id == payload.user_id,
+            User.is_active.is_(True),
+        )
+    )
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found.")
+    if payload.action != "compute:read" and membership.role not in OWNER_ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient organization permissions.")
+    return ComputeAuthorizationResponse()
 
 
 @router.post("/organizations", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)

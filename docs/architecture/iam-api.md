@@ -18,6 +18,43 @@ The in-process login limit is not shared across multiple workers or replicas. Pu
 
 The first administrator is created through the one-time `kubo-iam bootstrap-admin` CLI command. Further users are provisioned by an operator through `kubo-iam create-user`; public registration and invitations are not implemented.
 
+## Internal service authorization
+
+These endpoints are for internal service traffic only and must not be routed through public
+ingress. Service credentials are separate from user bearer tokens.
+
+| Method and path | Access | Behavior |
+|---|---|---|
+| `POST /internal/v1/service-auth/authorize` | Valid service bearer credential | Checks the requested service scope; returns the caller's service ID on success |
+| `POST /internal/v1/user-auth/authorize` | Service bearer credential with `iam:authorize` | Checks an authenticated actor's current organization membership for a Compute action |
+
+Unknown or revoked credentials return `401`; a valid credential without the requested scope
+returns `403`. IAM performs live validation on every request. This check authenticates the
+calling service only; it does not grant or prove the initiating user's organization access.
+
+The user-authorization request contains `organization_id`, `user_id`, and one action:
+`compute:read`, `compute:create`, `compute:start`, `compute:stop`, or `compute:delete`.
+The calling service must authenticate the user's bearer token before asserting its user ID.
+Workers use the actor ID persisted with the authoritative accepted operation. IAM checks
+that the user is active and a member of the organization; all members may read, while only
+Owners and Admins may mutate. Missing, inactive, or non-member users receive `404`;
+members denied a mutation receive `403`; an allowed decision returns
+`{"authorized": true}`. Only `compute-api` and `compute-worker` service identities may make
+these decisions. Compute must still scope every resource query and mutation to the
+organization, and IAM availability failures must fail closed.
+
+Operators provision credentials locally. The token is shown once and must be delivered to
+the service as a secret:
+
+```powershell
+kubo-iam create-service-credential --service-id compute-worker --scope iam:authorize --scope network:attachments:manage
+kubo-iam revoke-service-credential --credential-id <credential-uuid>
+```
+
+Credentials remain valid until revoked. Rotate by issuing and deploying a replacement before
+revoking the previous credential. See [ADR-009](decisions/ADR-009-service-identity-and-credentials.md)
+for the scope registry and service-boundary rules.
+
 ## Organizations and memberships
 
 | Method and path | Access | Behavior |

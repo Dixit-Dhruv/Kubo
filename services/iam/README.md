@@ -19,6 +19,10 @@ The default development database is `sqlite:///./iam.db`. Set `KUBO_IAM_DATABASE
 
 Create additional operator-provisioned accounts with `kubo-iam create-user --email user@example.test`. Account creation and invitations are not exposed as public API endpoints in this slice.
 
+Create or revoke scoped internal service credentials with `kubo-iam create-service-credential`
+and `kubo-iam revoke-service-credential`. The credential is printed once; inject it through
+the deployment's secret mechanism and never commit it or include it in logs.
+
 ## Tests
 
 ```powershell

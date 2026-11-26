@@ -45,6 +45,8 @@ Start with the [architecture index and workflow](docs/architecture/README.md), t
 | [Container architecture](docs/architecture/container-architecture.md) | Deployable services and infrastructure dependencies |
 | [Component architecture](docs/architecture/component-architecture.md) | Responsibilities and service boundaries |
 | [IAM API contract](docs/architecture/iam-api.md) | Initial account and organization APIs |
+| [Compute API contract](docs/architecture/compute-api.md) | Compute lifecycle, authorization, operations, and port requests |
+| [Networking service contract](docs/architecture/networking-api.md) | Automatic compute attachments and managed port allocations |
 | [Deployment architecture](docs/architecture/deployment-architecture.md) | Windows development and Linux self-hosting |
 | [Data flows](docs/architecture/data-flow.md) | Authentication, organization access, and compute lifecycle |
 | [Security architecture](docs/architecture/security-architecture.md) | Trust boundaries, threats, and required controls |

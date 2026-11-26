@@ -16,6 +16,34 @@ class TokenResponse(BaseModel):
     expires_at: datetime
 
 
+class ServiceAuthorizationRequest(BaseModel):
+    scope: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[a-z][a-z0-9]*(?::[a-z][a-z0-9_-]*)*$",
+    )
+
+
+class ServiceAuthorizationResponse(BaseModel):
+    service_id: str
+
+
+class ComputeAuthorizationRequest(BaseModel):
+    organization_id: UUID
+    user_id: UUID
+    action: Literal[
+        "compute:read",
+        "compute:create",
+        "compute:start",
+        "compute:stop",
+        "compute:delete",
+    ]
+
+
+class ComputeAuthorizationResponse(BaseModel):
+    authorized: Literal[True] = True
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

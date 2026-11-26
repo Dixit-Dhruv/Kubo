@@ -6,8 +6,8 @@ from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import select
 
-from kubo_iam.models import ApiToken, Membership, Organization, User
-from kubo_iam.security import hash_api_token, hash_password, verify_password
+from kubo_iam.models import ApiToken, Membership, Organization, ServiceCredential, User
+from kubo_iam.security import hash_api_token, hash_password, hash_service_token, verify_password
 
 
 def create_user(sessions, email: str, password: str = "correct horse battery") -> User:
@@ -84,6 +84,171 @@ def test_non_ascii_bearer_token_is_rejected():
     with pytest.raises(HTTPException) as error:
         get_auth_context(credentials=credentials, session=None)
     assert error.value.status_code == 401
+
+
+def test_internal_service_authorization_enforces_scope_and_revocation(test_context):
+    client, sessions = test_context
+    token = "service-secret-token"
+    with sessions() as session:
+        credential = ServiceCredential(
+            service_id="compute-worker",
+            token_hash=hash_service_token(token),
+            scopes=["network:attachments:manage"],
+        )
+        session.add(credential)
+        session.commit()
+
+    headers = {"Authorization": f"Bearer {token}"}
+    authorized = client.post(
+        "/internal/v1/service-auth/authorize",
+        headers=headers,
+        json={"scope": "network:attachments:manage"},
+    )
+    denied_scope = client.post(
+        "/internal/v1/service-auth/authorize",
+        headers=headers,
+        json={"scope": "iam:authorize"},
+    )
+
+    assert authorized.status_code == 200
+    assert authorized.json() == {"service_id": "compute-worker"}
+    assert denied_scope.status_code == 403
+
+    with sessions() as session:
+        stored = session.get(ServiceCredential, credential.id)
+        assert stored is not None
+        assert token not in stored.token_hash
+        stored.revoked_at = datetime.now(UTC)
+        session.commit()
+
+    assert client.post(
+        "/internal/v1/service-auth/authorize",
+        headers=headers,
+        json={"scope": "network:attachments:manage"},
+    ).status_code == 401
+
+
+def test_internal_compute_authorization_enforces_membership_and_role_policy(test_context):
+    client, sessions = test_context
+    owner = create_user(sessions, "owner@example.com")
+    admin = create_user(sessions, "admin@example.com")
+    member = create_user(sessions, "member@example.com")
+    outsider = create_user(sessions, "outsider@example.com")
+    owner_headers = {"Authorization": f"Bearer {login(client, owner.email)}"}
+    organization = client.post(
+        "/api/v1/organizations",
+        headers=owner_headers,
+        json={"name": "Compute authorization"},
+    ).json()
+    organization_id = organization["id"]
+    client.put(
+        f"/api/v1/organizations/{organization_id}/members",
+        headers=owner_headers,
+        json={"user_id": str(admin.id), "role": "admin"},
+    )
+    client.put(
+        f"/api/v1/organizations/{organization_id}/members",
+        headers=owner_headers,
+        json={"user_id": str(member.id), "role": "member"},
+    )
+
+    service_token = "compute-api-secret-token"
+    with sessions() as session:
+        session.add(
+            ServiceCredential(
+                service_id="compute-api",
+                token_hash=hash_service_token(service_token),
+                scopes=["iam:authorize"],
+            )
+        )
+        session.commit()
+
+    service_headers = {"Authorization": f"Bearer {service_token}"}
+
+    def authorize(user_id: UUID, action: str):
+        return client.post(
+            "/internal/v1/user-auth/authorize",
+            headers=service_headers,
+            json={
+                "organization_id": organization_id,
+                "user_id": str(user_id),
+                "action": action,
+            },
+        )
+
+    assert authorize(owner.id, "compute:create").json() == {"authorized": True}
+    assert authorize(admin.id, "compute:delete").status_code == 200
+    assert authorize(member.id, "compute:read").status_code == 200
+    assert authorize(member.id, "compute:start").status_code == 403
+    assert authorize(outsider.id, "compute:read").status_code == 404
+
+    with sessions() as session:
+        stored_member = session.get(User, member.id)
+        assert stored_member is not None
+        stored_member.is_active = False
+        session.commit()
+    assert authorize(member.id, "compute:read").status_code == 404
+
+
+def test_internal_compute_authorization_requires_service_scope_and_valid_action(test_context):
+    client, sessions = test_context
+    user = create_user(sessions, "owner@example.com")
+    user_headers = {"Authorization": f"Bearer {login(client, user.email)}"}
+    organization = client.post(
+        "/api/v1/organizations",
+        headers=user_headers,
+        json={"name": "Scoped authorization"},
+    ).json()
+
+    wrong_scope_token = "wrong-scope-secret-token"
+    untrusted_service_token = "networking-secret-token"
+    valid_service_token = "compute-api-secret-token"
+    with sessions() as session:
+        session.add_all(
+            [
+                ServiceCredential(
+                    service_id="compute-api",
+                    token_hash=hash_service_token(wrong_scope_token),
+                    scopes=["network:attachments:manage"],
+                ),
+                ServiceCredential(
+                    service_id="networking",
+                    token_hash=hash_service_token(untrusted_service_token),
+                    scopes=["iam:authorize"],
+                ),
+                ServiceCredential(
+                    service_id="compute-api",
+                    token_hash=hash_service_token(valid_service_token),
+                    scopes=["iam:authorize"],
+                ),
+            ]
+        )
+        session.commit()
+    payload = {
+        "organization_id": organization["id"],
+        "user_id": str(user.id),
+        "action": "compute:read",
+    }
+
+    denied_scope = client.post(
+        "/internal/v1/user-auth/authorize",
+        headers={"Authorization": f"Bearer {wrong_scope_token}"},
+        json=payload,
+    )
+    denied_service = client.post(
+        "/internal/v1/user-auth/authorize",
+        headers={"Authorization": f"Bearer {untrusted_service_token}"},
+        json=payload,
+    )
+    invalid_action = client.post(
+        "/internal/v1/user-auth/authorize",
+        headers={"Authorization": f"Bearer {valid_service_token}"},
+        json={**payload, "action": "compute:reconfigure"},
+    )
+
+    assert denied_scope.status_code == 403
+    assert denied_service.status_code == 403
+    assert invalid_action.status_code == 422
 
 
 def test_login_rate_limit_is_applied(test_context):

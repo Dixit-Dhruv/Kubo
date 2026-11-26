@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from kubo_iam.database import get_db
-from kubo_iam.routes import limiter, router
+from kubo_iam.routes import internal_router, limiter, router
 
 
 def create_app() -> FastAPI:
@@ -14,6 +14,7 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.include_router(router)
+    app.include_router(internal_router)
 
     @app.get("/health/live", tags=["health"])
     def liveness() -> dict[str, str]:

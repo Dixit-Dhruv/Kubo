@@ -1,8 +1,10 @@
 import argparse
+from datetime import UTC, datetime
 from getpass import getpass
 import os
 from pathlib import Path
 import sys
+from uuid import UUID
 
 from alembic import command
 from alembic.config import Config
@@ -13,10 +15,20 @@ from sqlalchemy.orm import Session
 
 from kubo_iam.config import get_settings
 from kubo_iam.database import SessionLocal
-from kubo_iam.models import BootstrapClaim, User
-from kubo_iam.security import hash_password, normalize_email
+from kubo_iam.models import BootstrapClaim, ServiceCredential, User
+from kubo_iam.security import (
+    create_service_credential as make_service_credential,
+    hash_password,
+    normalize_email,
+)
 
 SERVICE_ROOT = Path(os.environ.get("KUBO_IAM_SERVICE_ROOT", Path(__file__).resolve().parents[2]))
+SERVICE_SCOPES = {
+    "api-gateway": {"iam:authenticate"},
+    "compute-api": {"iam:authorize"},
+    "compute-worker": {"iam:authorize", "network:attachments:manage"},
+    "networking": {"iam:authorize"},
+}
 
 
 def upgrade_database() -> None:
@@ -94,6 +106,48 @@ def add_user(email: str) -> None:
         print(f"Created user {user.email} ({user.id}).")
 
 
+def create_service_credential(service_id: str, scopes: list[str]) -> None:
+    if service_id not in SERVICE_SCOPES:
+        raise ValueError("Unknown service identity.")
+    requested_scopes = set(scopes)
+    if not requested_scopes:
+        raise ValueError("At least one service scope is required.")
+    if not requested_scopes.issubset(SERVICE_SCOPES[service_id]):
+        raise ValueError("One or more scopes are not allowed for this service identity.")
+
+    upgrade_database()
+    with SessionLocal() as session:
+        has_platform_admin = session.scalar(
+            select(User.id).where(User.is_platform_admin.is_(True)).limit(1)
+        )
+        if has_platform_admin is None:
+            raise ValueError("Create the initial platform administrator before adding service credentials.")
+
+        token, credential = make_service_credential(service_id, sorted(requested_scopes))
+        session.add(credential)
+        session.commit()
+        session.refresh(credential)
+        print(f"Created service credential {credential.id} for {service_id}.")
+        print(f"Bearer token (shown once): {token}")
+
+
+def revoke_service_credential(credential_id: str) -> None:
+    try:
+        parsed_id = UUID(credential_id)
+    except ValueError as exc:
+        raise ValueError("A valid service credential UUID is required.") from exc
+
+    upgrade_database()
+    with SessionLocal() as session:
+        credential = session.get(ServiceCredential, parsed_id)
+        if credential is None:
+            raise ValueError("Service credential not found.")
+        if credential.revoked_at is None:
+            credential.revoked_at = datetime.now(UTC)
+            session.commit()
+        print(f"Revoked service credential {credential.id}.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="kubo-iam")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -102,6 +156,17 @@ def main() -> None:
     bootstrap.add_argument("--email", required=True)
     create = commands.add_parser("create-user", help="Create a user account for organization membership.")
     create.add_argument("--email", required=True)
+    create_service = commands.add_parser(
+        "create-service-credential",
+        help="Create a scoped service bearer credential; the token is displayed once.",
+    )
+    create_service.add_argument("--service-id", required=True, choices=sorted(SERVICE_SCOPES))
+    create_service.add_argument("--scope", action="append", required=True)
+    revoke_service = commands.add_parser(
+        "revoke-service-credential",
+        help="Revoke a service credential by its credential UUID.",
+    )
+    revoke_service.add_argument("--credential-id", required=True)
     args = parser.parse_args()
 
     try:
@@ -110,6 +175,10 @@ def main() -> None:
             print("IAM database is up to date.")
         elif args.command == "bootstrap-admin":
             bootstrap_admin(args.email)
+        elif args.command == "create-service-credential":
+            create_service_credential(args.service_id, args.scope)
+        elif args.command == "revoke-service-credential":
+            revoke_service_credential(args.credential_id)
         else:
             add_user(args.email)
     except ValueError as exc:

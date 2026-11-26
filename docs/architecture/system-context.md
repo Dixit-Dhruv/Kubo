@@ -33,7 +33,7 @@ flowchart LR
     Client -->|"HTTPS / custom API"| Gateway
     Gateway --> IAM
     Gateway --> Compute
-    Gateway --> Network
+    Compute -->|"Internal attachment API"| Network
     Compute -->|"Internal lifecycle work"| Broker
     Broker -->|"Consumed by compute worker"| Compute
     Compute -->|"Privileged adapter boundary"| Docker

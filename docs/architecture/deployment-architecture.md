@@ -34,7 +34,7 @@ flowchart TB
     Dev --> Gateway
     Gateway --> IAM
     Gateway --> Compute
-    Gateway --> Network
+    Compute -->|"Internal attachment API"| Network
     Compute --> Rabbit
     IAM --> SQLite
     Compute --> SQLite
@@ -69,7 +69,7 @@ flowchart TB
     Client --> Internet --> Proxy --> Gateway
     Gateway --> IAM
     Gateway --> Compute
-    Gateway --> Network
+    Compute -->|"Internal attachment API"| Network
     IAM --> Pg
     Compute --> Pg
     Network --> Pg

@@ -13,6 +13,8 @@ ADRs record material choices, alternatives, rationale, and consequences. Accepte
 | ADR-005 | Compute provider and initial image policy | Accepted |
 | ADR-006 | Asynchronous operations and recovery requirements | Accepted |
 | ADR-007 | IAM implementation stack | Accepted |
+| ADR-008 | First-milestone Compute and Networking API boundary | Accepted |
+| ADR-009 | Internal service identity and credentials | Accepted |
 
 ## Status definitions
 

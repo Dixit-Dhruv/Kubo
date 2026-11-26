@@ -48,7 +48,6 @@ flowchart TB
 
     Gateway --> Accounts
     Gateway --> ComputeAPI
-    Gateway --> NetworkAPI
     ComputeAPI -->|"Authorize subject + organization + action"| Policies
     Worker -->|"Internal authenticated API"| NetworkAPI
     Operations --> Broker[("RabbitMQ")]
@@ -84,6 +83,7 @@ flowchart TB
 ### Networking Service
 
 - Owns logical network configuration and address/port allocations.
+- In the first slice, serves internal Compute attachment and managed port-allocation requests; independent user-managed networks are deferred.
 - Validates organization scope and applies host-specific networking through a bounded adapter.
 - Does not assume future Firecracker and Docker networking are interchangeable.
 

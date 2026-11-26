@@ -1,4 +1,5 @@
 import os
+from uuid import UUID
 
 import pytest
 from sqlalchemy import func, select
@@ -6,8 +7,8 @@ from sqlalchemy.orm import sessionmaker
 
 from kubo_iam import cli
 from kubo_iam.database import Base, make_engine
-from kubo_iam.models import BootstrapClaim, User
-from kubo_iam.security import hash_password
+from kubo_iam.models import BootstrapClaim, ServiceCredential, User
+from kubo_iam.security import hash_password, hash_service_token
 
 
 @pytest.fixture
@@ -48,3 +49,45 @@ def test_bootstrap_rejects_a_claim_already_taken_by_another_process(cli_sessions
 
     with cli_sessions() as session:
         assert session.scalar(select(func.count()).select_from(User)) == 0
+
+
+def test_service_credential_cli_creates_hashed_scoped_credential_and_revokes_it(
+    cli_sessions,
+    capsys,
+):
+    with cli_sessions() as session:
+        session.add(
+            User(
+                email="admin@example.com",
+                password_hash=hash_password("correct horse battery"),
+                is_platform_admin=True,
+            )
+        )
+        session.commit()
+
+    cli.create_service_credential(
+        "compute-worker",
+        ["network:attachments:manage", "iam:authorize"],
+    )
+    output = capsys.readouterr().out.splitlines()
+    credential_id = output[0].split()[3]
+    token = output[1].split(": ", maxsplit=1)[1]
+
+    with cli_sessions() as session:
+        credential = session.get(ServiceCredential, UUID(credential_id))
+        assert credential is not None
+        assert credential.token_hash == hash_service_token(token)
+        assert token not in credential.token_hash
+        assert credential.scopes == ["iam:authorize", "network:attachments:manage"]
+
+    cli.revoke_service_credential(credential_id)
+
+    with cli_sessions() as session:
+        credential = session.get(ServiceCredential, UUID(credential_id))
+        assert credential is not None
+        assert credential.revoked_at is not None
+
+
+def test_service_credentials_reject_ungranted_scopes(cli_sessions):
+    with pytest.raises(ValueError, match="not allowed"):
+        cli.create_service_credential("compute-worker", ["iam:authenticate"])

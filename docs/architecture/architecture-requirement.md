@@ -59,12 +59,12 @@ Kubo is a self-hosted, AWS-inspired local infrastructure platform. It exposes Ku
 
 These are deliberately narrower than the selected architectural baseline and must be specified before the affected feature ships:
 
-- API resource schemas and error conventions outside the initial IAM contract; API versioning/evolution.
+- API versioning/evolution beyond the initial IAM, Compute, and Networking contracts.
 - Account recovery, password changes, and organization invitations.
 - Shared rate limiting for multiple service workers or replicas.
-- Service identity and RabbitMQ credential provisioning for local and deployed environments.
-- Docker image approval/update process, resource profiles/quotas, and cleanup behavior.
-- Network address/port allocation, inbound exposure, and host-firewall policy.
+- Service secret delivery/rotation and RabbitMQ credential provisioning for local and deployed environments.
+- Docker image approval/update process, concrete resource-profile values/quotas, and cleanup behavior.
+- Networking allocation ranges, host bind address, inbound exposure, egress, and host-firewall policy.
 - RabbitMQ topology, bounded retry/backoff, dead-letter handling, and outbox/reconciliation requirements.
 - Migration and test strategy for SQLite/PostgreSQL behavior parity.
 - Backup/restore, audit retention, log policy, and supported Linux distributions.

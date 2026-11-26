@@ -59,11 +59,13 @@ Docker containers share the host kernel. Therefore:
 ## 6. Internal services and asynchronous work
 
 - Each service and worker has a distinct logical identity and least-privilege credentials.
+- Service credentials are opaque per-service bearer tokens; IAM stores only SHA-256 hashes and
+  checks the requested scope on every internal request. Tokens remain valid until revoked.
 - RabbitMQ is restricted to internal network paths and service-specific permissions; its credentials are not user credentials.
 - Messages are validated and idempotent handlers use authoritative service state. Message fields alone cannot grant permission.
 - Preserve the initiating user, organization, action, target resource, operation ID, and correlation ID for audit and authorization.
 - Audit records distinguish the initiating user from the executing service/worker and exclude passwords, bearer tokens, private keys, and other secrets.
-- Service-to-service authentication mechanism, credential rotation/bootstrap, broker permissions, and audit retention are implementation design gates.
+- Deployment secret delivery and rotation procedures, service-to-user authorization checks, broker permissions, and audit retention remain implementation gates.
 
 ## 7. Data and operational security
 

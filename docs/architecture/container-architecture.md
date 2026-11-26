@@ -35,16 +35,15 @@ flowchart TB
     Proxy --> Gateway
     Gateway --> IAM
     Gateway --> ComputeAPI
-    Gateway --> Network
     IAM --> IAMDB
     ComputeAPI --> ComputeDB
     Network --> NetworkDB
     ComputeAPI -->|"Durable internal work"| Broker
     Broker --> ComputeWorker
     ComputeWorker --> ComputeDB
+    ComputeWorker -->|"Authenticated attachment API"| Network
     ComputeWorker --> Adapter
     Adapter -->|"Privileged host API; isolated"| Docker
-    ComputeWorker --> Network
     Docker --> Volumes
     Network --> HostNet
 

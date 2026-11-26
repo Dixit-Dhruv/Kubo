@@ -32,7 +32,8 @@ Kubo is self-hosted and must support multiple users and organizations. The owner
 - Use a reviewed password-hashing implementation; do not implement cryptographic primitives.
 - Do not ship default production credentials.
 - Protect authentication with abuse controls and generic failure responses.
-- Define expiry, revocation, rotation, logout, and account recovery before exposing the login API.
+- User bearer tokens have a one-hour lifetime and support revocation and logout. Account
+  recovery and password-change flows remain deferred.
 - Record security-sensitive actions with actor, organization, action, target, outcome, and correlation/operation identifiers, without secrets.
 
 ## Consequences
@@ -54,4 +55,13 @@ The first implementation uses one-hour opaque bearer tokens with server-side rev
 
 The one-time CLI bootstrap creates the first platform administrator. Additional accounts are operator-provisioned through the CLI; public registration and invitations are not included yet. Owner/Admin/Member semantics and the initial membership API are specified in the [IAM API contract](../iam-api.md).
 
-Account recovery, stronger shared rate limiting, service credential issuance/rotation, and the policy for permission changes between operation acceptance and execution remain release gates. The login flow must receive a focused security review before public deployment.
+Account recovery, stronger shared rate limiting, deployment secret delivery/rotation
+procedures, and the policy for permission changes between operation acceptance and execution
+remain release gates. The login flow must receive a focused security review before public
+deployment.
+
+The first internal service-credential mechanism is selected in
+[ADR-009](ADR-009-service-identity-and-credentials.md): opaque per-service bearer credentials,
+stored as hashes in IAM, scoped, and valid until revoked. Receivers validate requested
+scopes through IAM on each internal request. Deployment secret delivery and service-to-user
+authorization checks remain implementation gates.
