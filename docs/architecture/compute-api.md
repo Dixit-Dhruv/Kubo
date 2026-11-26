@@ -41,6 +41,23 @@ CPU, memory, storage, and other limits are defined by the selected operator-mana
 clients cannot override them in this contract. The profile catalog, concrete values, quotas,
 and approved-image administration process remain implementation gates.
 
+The operator-managed image catalog maps keys to immutable `repository@sha256:<digest>`
+references. Compute rejects mutable tags and resolves client-supplied keys only; an image
+update requires changing the operator catalog to a newly reviewed digest. The catalog is
+provided as JSON with an `images` object and is validated when loaded.
+
+Profiles are operator-provided JSON entries with positive `cpu_millicores`, `memory_bytes`,
+and `ephemeral_storage_bytes` values; there are no built-in profile limits. The storage bound
+applies to the container's ephemeral writable layer. Persistent volumes are out of scope.
+The Docker provider must verify that the host can enforce the configured storage bound and
+must fail closed rather than launch without it.
+
+The Docker adapter resolves or pulls only the digest-pinned image, applies CPU, memory, and
+per-container writable-layer limits on every create request, and creates the container with
+networking disabled until Networking attaches it. If Docker rejects the storage option or
+any other configured limit, the create operation fails; the adapter never retries without
+the limit.
+
 ### Create request
 
 `POST /organizations/{organization_id}/computes`

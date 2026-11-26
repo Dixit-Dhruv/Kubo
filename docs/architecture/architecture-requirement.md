@@ -63,7 +63,7 @@ These are deliberately narrower than the selected architectural baseline and mus
 - Account recovery, password changes, and organization invitations.
 - Shared rate limiting for multiple service workers or replicas.
 - Service secret delivery/rotation and RabbitMQ credential provisioning for local and deployed environments.
-- Docker image approval/update process, concrete resource-profile values/quotas, and cleanup behavior.
+- Docker image approval/update process (catalog references pinned by digest), concrete resource-profile values/quotas, and cleanup behavior.
 - Networking allocation ranges, host bind address, inbound exposure, egress, and host-firewall policy.
 - RabbitMQ topology, bounded retry/backoff, dead-letter handling, and outbox/reconciliation requirements.
 - Migration and test strategy for SQLite/PostgreSQL behavior parity.

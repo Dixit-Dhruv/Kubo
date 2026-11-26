@@ -15,6 +15,18 @@ Kubo manages real local workloads but must not couple resource lifecycle state t
 - Implement the first provider using Docker Engine on Linux; Windows development uses Docker Desktop/WSL2.
 - Keep provider-specific capabilities explicit. A provider must not claim unsupported networking, storage, or isolation behavior.
 - The first release permits only administrator-approved images.
+- The operator-managed image catalog maps client-visible keys to immutable
+  `repository@sha256:<digest>` references. Image updates require an explicit catalog change;
+  mutable tags are not accepted as catalog values.
+- Resource profiles are operator-configured and contain positive CPU, memory, and ephemeral
+  storage limits; no built-in profile or host-specific resource budget is assumed.
+- The first slice supports only bounded ephemeral container storage. Persistent volumes are
+  deferred; the Docker provider must fail closed if the host cannot enforce the configured
+  writable-layer storage limit.
+- The Docker adapter resolves the pinned image by digest, applies the profile's CPU, memory,
+  and storage limits to every container create request, and creates containers without network
+  access until the Networking service attaches them. Rejected limits fail the operation; no
+  retry may omit a configured limit.
 - Reject privileged mode, host networking, host mounts, added capabilities, and other configurations that cross the documented host boundary.
 - Isolate Docker Engine access behind a restricted compute adapter. Docker API access is host-level privilege.
 - Treat Firecracker as future scope requiring a separate implementation and security review; it is not a fallback silently selected at runtime.
@@ -31,4 +43,7 @@ The provider boundary supports runtime evolution and independent lifecycle testi
 
 ## Implementation design gates
 
-Specify the provider contract/error mapping, approved-image management and update process, digest policy, CPU/memory/storage/network limits, persistent-volume semantics, Docker API protection, and cleanup/reconciliation behavior before exposing compute to multiple organizations.
+Specify provider error mapping, approved-image review and update process, concrete
+per-deployment profile values, Docker storage-quota capability checks, networking limits,
+Docker API protection, and cleanup/reconciliation behavior before exposing compute to
+multiple organizations. Persistent volumes remain outside the first slice.
