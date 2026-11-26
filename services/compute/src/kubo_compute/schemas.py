@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -25,3 +27,41 @@ class ComputeCreateRequest(BaseModel):
         if not value:
             raise ValueError("Compute name cannot be blank.")
         return value
+
+
+class ComputeResourceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    organization_id: UUID
+    name: str
+    image: str
+    profile: str
+    desired_state: str
+    observed_state: str
+    ports: list[dict[str, int | str]]
+    created_at: datetime
+    updated_at: datetime
+
+
+class ComputeOperationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    compute_id: UUID
+    action: str
+    status: str
+    last_error_code: str | None
+    last_error_message: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ComputeAcceptanceResponse(BaseModel):
+    resource: ComputeResourceResponse
+    operation: ComputeOperationResponse
+
+
+class ComputeListResponse(BaseModel):
+    items: list[ComputeResourceResponse]
+    next_cursor: str | None

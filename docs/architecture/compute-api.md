@@ -138,3 +138,19 @@ returns `failed` with a stable error code and safe message; the original request
 
 The exact idempotency-key behavior, retry/backoff values, and database-to-broker outbox
 mechanism remain implementation gates under ADR-006.
+
+## Compute API runtime configuration
+
+The Compute API reads its runtime settings from the `KUBO_COMPUTE_` environment prefix:
+
+| Variable | Purpose |
+|---|---|
+| `KUBO_COMPUTE_DATABASE_URL` | SQLAlchemy database URL; defaults to a local SQLite database |
+| `KUBO_COMPUTE_IAM_URL` | IAM service base URL |
+| `KUBO_COMPUTE_SERVICE_TOKEN` | Secret scoped for `iam:authorize`, issued to `compute-api` |
+| `KUBO_COMPUTE_IMAGE_CATALOG_PATH` | Operator-managed image catalog JSON path |
+| `KUBO_COMPUTE_PROFILE_CATALOG_PATH` | Operator-managed profile catalog JSON path |
+
+The service token must be delivered through the deployment's secret mechanism and must not
+be committed. There are no built-in images or compute profiles; missing or invalid catalog
+files make create requests unavailable rather than providing defaults.
