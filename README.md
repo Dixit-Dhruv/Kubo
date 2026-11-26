@@ -8,7 +8,7 @@ Kubo is not a complete AWS emulator and does not promise AWS API or SDK compatib
 
 ## Project status
 
-**Current phase:** Initial implementation — IAM is implemented; Compute catalogs and the Docker provider adapter are underway.
+**Current phase:** Initial implementation — IAM is implemented; Compute persistence and dispatch foundations are underway.
 
 The architecture baseline is documented. The first implementation slice is the API-first IAM service; Compute and Networking are following.
 

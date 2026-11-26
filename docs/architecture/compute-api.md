@@ -98,6 +98,19 @@ are `accepted`, `running`, `succeeded`, and `failed`. The operation record is au
 RabbitMQ is only a work transport. A failed operation includes a stable error code and a
 client-safe message, never raw provider output or secrets.
 
+Every create, start, stop, and delete request requires an `Idempotency-Key` header containing
+1-128 visible ASCII characters. Keys are scoped to the organization and initiating user. A
+replay with the same normalized method, path, and body returns the original resource and
+operation; reusing the key for a different request returns `409`. The key is retained for at
+least as long as its operation record.
+
+The resource, operation, and outbox event are committed in one database transaction. The
+outbox publisher retries until the event is published, using exponential delays of 1, 2, 4,
+8, 16, 32, then 60 seconds maximum; broker downtime does not discard accepted work. Workers
+claim operations atomically and make at most five total attempts. Retryable failures use
+exponential backoff; non-retryable failures or exhausted attempts set the operation to
+`failed` with safe error details.
+
 An invalid lifecycle transition returns `409`. Invalid request fields or unsupported image
 and profile keys return `422`. Missing/expired authentication returns `401`. A dependency
 failure that prevents durable acceptance or authorization returns `503`. If a recoverable

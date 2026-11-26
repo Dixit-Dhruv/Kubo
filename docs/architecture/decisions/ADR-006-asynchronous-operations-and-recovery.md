@@ -20,6 +20,12 @@ Provisioning and cleanup can outlive an API request and can partially succeed ac
 - Preserve the initiating actor and correlation context for authorization and audit.
 - Use compensation or reconciliation for partial cross-service operations; do not assume distributed ACID transactions.
 - Close the database/broker dual-write gap using a transactional outbox or equivalent recoverable design before productionizing provisioning.
+- Require an `Idempotency-Key` for every Compute mutation. Scope it to the organization and
+  initiating actor; the same normalized method/path/body replays the original operation, and
+  a different request with the same key conflicts. Retain the key with its operation record.
+- Compute's outbox publisher retries until publication with exponential delay capped at
+  60 seconds. Workers claim operations atomically and make at most five total attempts;
+  retryable failures use exponential backoff, then operation failure is durable and visible.
 
 ## Ownership
 
@@ -31,4 +37,5 @@ Durable status supports client polling and recovery after process failure, at th
 
 ## Deferred implementation details
 
-The exact state transitions, cancellation semantics, idempotency-key contract, retry/backoff values, dead-letter policy, retention, reconciliation cadence, and outbox implementation must be specified and tested by the affected services.
+Cancellation semantics, dead-letter policy, operation retention, reconciliation cadence, and
+the concrete broker topology remain service-level implementation details.
