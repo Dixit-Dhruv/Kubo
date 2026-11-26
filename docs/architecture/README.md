@@ -7,7 +7,7 @@ This directory is the architecture source of truth. The baseline records the dec
 1. [Architecture requirements](architecture-requirement.md) — agreed scope, constraints, and milestone.
 2. [System architecture](system-architecture.md) — logical structure and lifecycle model.
 3. [System context](system-context.md), [container architecture](container-architecture.md), and [component architecture](component-architecture.md) — boundaries at different levels.
-4. [Data flows](data-flow.md), [deployment architecture](deployment-architecture.md), and [security architecture](security-architecture.md) — runtime behavior and cross-cutting concerns.
+4. [IAM API contract](iam-api.md), [data flows](data-flow.md), [deployment architecture](deployment-architecture.md), and [security architecture](security-architecture.md) — runtime behavior and cross-cutting concerns.
 5. [Architecture Decision Records](decisions/README.md) — rationale, alternatives, consequences, and status.
 
 ## Status conventions
@@ -35,6 +35,7 @@ An accepted architectural baseline does not imply production readiness. Detailed
 | [System context](system-context.md) | Actors and system boundary |
 | [Container architecture](container-architecture.md) | Runtime processes and dependencies |
 | [Component architecture](component-architecture.md) | Responsibility and ownership boundaries |
+| [IAM API contract](iam-api.md) | Initial authentication and organization endpoints and role rules |
 | [Data flows](data-flow.md) | Key synchronous and asynchronous workflows |
 | [Deployment architecture](deployment-architecture.md) | Development and self-hosted topologies |
 | [Security architecture](security-architecture.md) | Threats, trust boundaries, and controls |

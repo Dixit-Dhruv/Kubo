@@ -8,9 +8,9 @@ Kubo is not a complete AWS emulator and does not promise AWS API or SDK compatib
 
 ## Project status
 
-**Current phase:** Architecture baseline established; preparing the first implementation milestone.
+**Current phase:** Initial implementation — IAM service started.
 
-The architecture baseline and implementation scope are documented. Detailed API contracts and some operational policies will be specified alongside the first services.
+The architecture baseline is documented. The first implementation slice is the API-first IAM service; Compute and Networking follow.
 
 ## First implementation milestone
 
@@ -44,6 +44,7 @@ Start with the [architecture index and workflow](docs/architecture/README.md), t
 | [System context](docs/architecture/system-context.md) | Actors, platform boundary, and external infrastructure |
 | [Container architecture](docs/architecture/container-architecture.md) | Deployable services and infrastructure dependencies |
 | [Component architecture](docs/architecture/component-architecture.md) | Responsibilities and service boundaries |
+| [IAM API contract](docs/architecture/iam-api.md) | Initial account and organization APIs |
 | [Deployment architecture](docs/architecture/deployment-architecture.md) | Windows development and Linux self-hosting |
 | [Data flows](docs/architecture/data-flow.md) | Authentication, organization access, and compute lifecycle |
 | [Security architecture](docs/architecture/security-architecture.md) | Trust boundaries, threats, and required controls |

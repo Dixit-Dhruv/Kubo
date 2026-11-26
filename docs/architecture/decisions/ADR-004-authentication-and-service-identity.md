@@ -50,4 +50,8 @@ Domain-service authorization is duplicated at service boundaries by design; each
 
 ## Implementation design gates
 
-Before native login ships, choose and review the credential/session or token format, hashing library and parameters, account recovery, bootstrap procedure, rate limits, revocation behavior, and organization role/permission matrix. Before workers ship, define service credential issuance/rotation and the policy for permission changes between operation acceptance and execution.
+The first implementation uses one-hour opaque bearer tokens with server-side revocation, stores only token hashes, hashes passwords with Argon2id through a maintained library, and enforces a 12-character minimum. Login is limited to five attempts per minute per source IP in the single-process deployment; this in-memory limit is not sufficient for multiple workers or replicas, which require a shared or edge rate limit.
+
+The one-time CLI bootstrap creates the first platform administrator. Additional accounts are operator-provisioned through the CLI; public registration and invitations are not included yet. Owner/Admin/Member semantics and the initial membership API are specified in the [IAM API contract](../iam-api.md).
+
+Account recovery, stronger shared rate limiting, service credential issuance/rotation, and the policy for permission changes between operation acceptance and execution remain release gates. The login flow must receive a focused security review before public deployment.

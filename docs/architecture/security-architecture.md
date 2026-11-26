@@ -25,22 +25,22 @@ Kubo must prevent unauthorized account, organization, and resource access; const
 - Kubo manages native local user accounts; no external identity provider is required by the first milestone.
 - Organizations own compute and network resources. Users receive access through organization membership and permissions.
 - IAM owns account and organization membership data. Compute and Networking enforce organization-scoped access to their own resources.
-- The initial role names, permissions, invitation model, account recovery, and administrator bootstrap procedure are implementation design gates.
+- The initial roles are Owner, Admin, and Member. Public registration and invitations are deferred; the operator provisions accounts through the CLI.
+- The first platform administrator is created through a one-time CLI bootstrap.
 - A random resource identifier is not an authorization control. Unauthorized resource existence and data must not be disclosed.
 - Disable/revoke access when an account or membership is disabled. Asynchronous workers must revalidate current operation and authorization state according to the policy defined for the operation.
 
 ## 4. Native account security requirements
 
-Before native login ships, its design must specify:
+The initial implementation defines:
 
-- Password verifier using a modern password-hashing function with reviewed parameters; never store or log plaintext passwords.
-- Credential transport and session/access-token format, expiry, revocation, rotation, and logout behavior.
-- Login abuse controls, generic authentication failures, and account recovery/change flows.
-- Initial administrator creation without hardcoded or shared default credentials.
-- Protection of signing/session secrets and per-environment secret injection.
-- Tests for disabled accounts, invalid credentials, expired/revoked sessions, and unauthorized organization/resource access.
+- Opaque bearer tokens with a one-hour lifetime; persist only the SHA-256 hash of the random token.
+- Argon2id password hashing through a maintained library, with a 12-character minimum; never store or log plaintext passwords.
+- Logout revokes the presented token. Expired and revoked credentials are rejected.
+- A five-per-minute login limit per client IP in the initial single-process deployment.
+- Generic authentication failures and a one-time bootstrap that does not ship a default credential.
 
-The exact token/session mechanism, hashing library/parameters, and recovery flow are not yet selected. They must be resolved and security-reviewed before account authentication is exposed to users.
+The in-process limit is not shared across workers or replicas. Add edge or shared rate limiting before a multi-worker/public deployment. Account recovery and password-change flows remain deferred; do not claim production readiness until they are designed and reviewed.
 
 ## 5. Compute and host security
 
@@ -78,7 +78,7 @@ Docker containers share the host kernel. Therefore:
 | Threat | First-release control / limitation |
 |---|---|
 | Cross-organization access | Organization scoping and authorization in each owning domain service; negative integration tests |
-| Stolen or guessed credentials | Password/session controls, rate limiting, secret handling, account disablement; implementation details pending |
+| Stolen or guessed credentials | Argon2id hashes, one-hour revocable opaque tokens, generic login errors, and a per-process login limit; recovery and shared rate limiting remain pending |
 | Malicious container or host escape | Admin-approved images and restricted Docker options; shared-kernel risk remains, so arbitrary workloads are out of scope |
 | Docker API compromise | Isolate privileged adapter and restrict access; Docker Engine remains a trusted host boundary |
 | Forged/replayed internal message | Broker ACLs, schema validation, idempotency, authoritative state checks, and operation attribution |
@@ -87,4 +87,4 @@ Docker containers share the host kernel. Therefore:
 
 ## 9. Review gate
 
-The native authentication flow, organization permission matrix, trusted service identity, compute resource limits, image approval process, and Docker adapter isolation must receive a focused security review before the first multi-user compute release.
+The native authentication flow, service credential provisioning, compute resource limits, image approval process, and Docker adapter isolation must receive a focused security review before the first multi-user compute release.

@@ -12,6 +12,7 @@ ADRs record material choices, alternatives, rationale, and consequences. Accepte
 | ADR-004 | Native account authentication and service identity | Accepted |
 | ADR-005 | Compute provider and initial image policy | Accepted |
 | ADR-006 | Asynchronous operations and recovery requirements | Accepted |
+| ADR-007 | IAM implementation stack | Accepted |
 
 ## Status definitions
 

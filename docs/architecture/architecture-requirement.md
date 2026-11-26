@@ -25,6 +25,8 @@ Kubo is a self-hosted, AWS-inspired local infrastructure platform. It exposes Ku
 | REQ-11 | API compatibility | Custom Kubo APIs; no AWS compatibility promise |
 | REQ-12 | Operational behavior | Long-running work is asynchronous, durably tracked, observable, and recoverable |
 | REQ-13 | Workload policy | Only administrator-approved container images; no privileged mode, host networking, host mounts, or added capabilities in the first milestone |
+| REQ-14 | IAM implementation baseline | Python/FastAPI; one-hour opaque bearer tokens stored as hashes; Argon2id password hashing with a 12-character minimum; Owner/Admin/Member roles |
+| REQ-15 | Initial administrator | One-time interactive CLI bootstrap; operator-provisioned accounts for the first implementation |
 
 ## 3. First milestone boundaries
 
@@ -57,9 +59,9 @@ Kubo is a self-hosted, AWS-inspired local infrastructure platform. It exposes Ku
 
 These are deliberately narrower than the selected architectural baseline and must be specified before the affected feature ships:
 
-- API resource schemas, endpoint/error conventions, and versioning.
-- Organization roles and exact permission matrix; initial administrator bootstrap and account recovery.
-- Native-account credential/session/token format, rotation/revocation, and abuse controls.
+- API resource schemas and error conventions outside the initial IAM contract; API versioning/evolution.
+- Account recovery, password changes, and organization invitations.
+- Shared rate limiting for multiple service workers or replicas.
 - Service identity and RabbitMQ credential provisioning for local and deployed environments.
 - Docker image approval/update process, resource profiles/quotas, and cleanup behavior.
 - Network address/port allocation, inbound exposure, and host-firewall policy.

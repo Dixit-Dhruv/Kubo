@@ -79,7 +79,7 @@ SQLite/PostgreSQL behavioral differences must be covered by tests. The implement
 
 Organizations own resources; users access them through membership and permissions. Every domain service must enforce organization scope on reads and mutations. Guessing a resource identifier must not bypass authorization.
 
-Native Kubo account authentication is in scope. Password/session/token implementation details, organization roles, internal service credentials, and administrator bootstrap are security-sensitive implementation designs and must be specified before the affected API ships. No default production credentials are permitted.
+The initial IAM API implements native account authentication, organization roles, and one-time administrator bootstrap; see the [IAM API contract](iam-api.md) and [authentication ADR](decisions/ADR-004-authentication-and-service-identity.md). Internal service credentials and account recovery remain unimplemented security gates and must be designed before dependent APIs ship. No default production credentials are permitted.
 
 The Docker Engine is a privileged host boundary. Only the isolated compute adapter may invoke it. Docker containers share the host kernel and are not a security boundary suitable for hostile arbitrary workloads. The first release therefore limits launches to administrator-approved images and prohibits privileged Docker options. This is not a claim of strong isolation or production-grade multi-tenancy.
 
