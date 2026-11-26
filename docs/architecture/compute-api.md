@@ -136,8 +136,9 @@ returns `failed` with a stable error code and safe message; the original request
 - Cancellation, arbitrary resource updates, and client-supplied Docker options are out of
   scope for the first contract.
 
-The exact idempotency-key behavior, retry/backoff values, and database-to-broker outbox
-mechanism remain implementation gates under ADR-006.
+The initial Compute implementation applies the documented idempotency, retry/backoff, and
+transactional-outbox behavior under ADR-006. Operation retention and cleanup policy remain
+open implementation gates.
 
 ## Compute API runtime configuration
 
@@ -148,9 +149,19 @@ The Compute API reads its runtime settings from the `KUBO_COMPUTE_` environment 
 | `KUBO_COMPUTE_DATABASE_URL` | SQLAlchemy database URL; defaults to a local SQLite database |
 | `KUBO_COMPUTE_IAM_URL` | IAM service base URL |
 | `KUBO_COMPUTE_SERVICE_TOKEN` | Secret scoped for `iam:authorize`, issued to `compute-api` |
+| `KUBO_COMPUTE_WORKER_SERVICE_TOKEN` | Separate worker secret scoped for `iam:authorize`, issued to `compute-worker` |
+| `KUBO_COMPUTE_BROKER_URL` | RabbitMQ AMQP URL; required by the outbox publisher and worker |
+| `KUBO_COMPUTE_BROKER_QUEUE` | Durable operation queue name; defaults to `kubo.compute.operations` |
 | `KUBO_COMPUTE_IMAGE_CATALOG_PATH` | Operator-managed image catalog JSON path |
 | `KUBO_COMPUTE_PROFILE_CATALOG_PATH` | Operator-managed profile catalog JSON path |
 
-The service token must be delivered through the deployment's secret mechanism and must not
-be committed. There are no built-in images or compute profiles; missing or invalid catalog
-files make create requests unavailable rather than providing defaults.
+Run the API, outbox publisher, and worker as separate processes with `kubo-compute`,
+`kubo-compute-publish`, and `kubo-compute-worker`. The publisher uses RabbitMQ publisher
+confirms and durable queues; messages may be delivered more than once, so operation claims
+remain authoritative. Malformed messages are routed to a durable dead-letter queue.
+
+Service tokens must be delivered through the deployment's secret mechanism and must not be
+committed. There are no built-in images or compute profiles; missing or invalid catalog
+files make create requests unavailable rather than providing defaults. The initial worker
+fails create operations that request ports until the Networking attachment adapter is
+implemented; it never reports those resources as running without an attachment.

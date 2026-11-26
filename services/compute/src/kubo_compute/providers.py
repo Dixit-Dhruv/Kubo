@@ -67,10 +67,45 @@ class DockerProvider:
                 "The approved compute image could not be loaded.",
             ) from None
 
+        name = f"kubo-{compute_id.hex}"
+        try:
+            existing = self._client.containers.get(name)
+        except NotFound:
+            existing = None
+        except DockerException:
+            raise ProviderError(
+                ProviderFailureCode.DOCKER_UNAVAILABLE,
+                "Docker could not check for an existing compute container.",
+            ) from None
+        if existing is not None:
+            try:
+                existing.reload()
+            except DockerException:
+                raise ProviderError(
+                    ProviderFailureCode.CONTAINER_INSPECT_FAILED,
+                    "Docker could not inspect an existing compute container.",
+                ) from None
+            config = existing.attrs.get("Config", {})
+            labels = config.get("Labels") or {}
+            host_config = existing.attrs.get("HostConfig", {})
+            storage_options = host_config.get("StorageOpt") or {}
+            if (
+                labels.get("kubo.compute_id") != str(compute_id)
+                or config.get("Image") != image.id
+                or host_config.get("NanoCpus") != profile.cpu_millicores * 1_000_000
+                or host_config.get("Memory") != profile.memory_bytes
+                or storage_options.get("size") != str(profile.ephemeral_storage_bytes)
+            ):
+                raise ProviderError(
+                    ProviderFailureCode.CONTAINER_CREATE_FAILED,
+                    "An incompatible container already uses this compute identity.",
+                )
+            return existing.id
+
         try:
             container = self._client.containers.create(
                 image=image.id,
-                name=f"kubo-{compute_id.hex}",
+                name=name,
                 detach=True,
                 labels={"kubo.compute_id": str(compute_id)},
                 nano_cpus=profile.cpu_millicores * 1_000_000,

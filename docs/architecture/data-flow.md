@@ -70,7 +70,7 @@ sequenceDiagram
 ### Flow invariants
 
 - Persist accepted operation state before acknowledging acceptance.
-- The database/RabbitMQ dual-write gap must be addressed with a transactional outbox or an equivalent recoverable mechanism before the worker is relied on.
+- Compute closes the database/RabbitMQ dual-write gap with a transactional outbox, publisher confirms, and durable queues; other services need an equivalent mechanism before their workers are relied on.
 - A consumer must safely handle duplicate delivery and stale work by re-reading authoritative desired state.
 - Do not acknowledge successful resource creation until Docker and required networking have succeeded and the resulting state is persisted.
 - On partial failure, expose the error and run documented compensating cleanup; failed cleanup remains visible and retryable.

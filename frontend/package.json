@@ -1,0 +1,12 @@
+{
+  "name": "kubo-cloud-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Local test dashboard for Kubo IAM and Compute APIs",
+  "scripts": {
+    "dev": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111a2b">
+    <title>Kubo Cloud Console</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div id="auth-screen" class="auth-screen">
+      <div class="auth-art">
+        <div class="brand brand-light">
+          <span class="brand-mark">K</span>
+          <span>Kubo</span>
+          <span class="brand-tag">CLOUD</span>
+        </div>
+        <div class="art-copy">
+          <span class="eyebrow">YOUR INFRASTRUCTURE, YOUR RULES</span>
+          <h1>A cloud console<br>that feels like home.</h1>
+          <p>Provision and manage your own infrastructure with a clear view of every resource and operation.</p>
+        </div>
+        <div class="art-orbit orbit-one"></div>
+        <div class="art-orbit orbit-two"></div>
+        <div class="art-node node-one"></div>
+        <div class="art-node node-two"></div>
+        <div class="art-node node-three"></div>
+        <div class="auth-art-foot">
+          <span class="pulse-dot"></span>
+          LOCAL-FIRST CLOUD MANAGEMENT
+        </div>
+      </div>
+      <main class="auth-card-wrap">
+        <form id="login-form" class="auth-card">
+          <div class="mobile-brand brand">
+            <span class="brand-mark">K</span>
+            <span>Kubo</span>
+          </div>
+          <span class="eyebrow eyebrow-green">WELCOME BACK</span>
+          <h2>Sign in to your console</h2>
+          <p class="muted">Use your Kubo IAM account to continue.</p>
+          <label for="login-email">Email address</label>
+          <input id="login-email" name="email" type="email" autocomplete="username" placeholder="you@example.com" required>
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Your password" required>
+          <button class="button button-primary button-wide" type="submit">
+            <span>Sign in</span><span class="button-arrow">→</span>
+          </button>
+          <p id="login-error" class="inline-error" role="alert" hidden></p>
+          <div class="auth-foot">
+            <span class="secure-mark">●</span>
+            Your session stays in this browser tab.
+          </div>
+        </form>
+        <div class="auth-endpoints">
+          <span class="endpoint-dot"></span>
+          Local development endpoints
+          <span class="endpoint-label">IAM :8001</span>
+          <span class="endpoint-label">COMPUTE :8000</span>
+        </div>
+      </main>
+    </div>
+
+    <div id="app-shell" class="app-shell" hidden>
+      <aside class="sidebar">
+        <a class="brand brand-light sidebar-brand" href="#" aria-label="Kubo home">
+          <span class="brand-mark">K</span>
+          <span>Kubo</span>
+          <span class="brand-tag">CLOUD</span>
+        </a>
+        <div class="workspace-label">WORKSPACE</div>
+        <div class="workspace-switcher">
+          <span class="workspace-icon">⌂</span>
+          <select id="organization-select" aria-label="Select organization"></select>
+          <span class="select-chevron">⌄</span>
+        </div>
+        <nav class="main-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-view="overview">
+            <span class="nav-icon">◫</span><span>Overview</span>
+          </button>
+          <button class="nav-item" data-view="compute">
+            <span class="nav-icon">▦</span><span>Compute</span><span id="nav-compute-count" class="nav-count">0</span>
+          </button>
+          <button class="nav-item" data-view="identity">
+            <span class="nav-icon">♙</span><span>Identity &amp; access</span>
+          </button>
+          <button class="nav-item" data-view="activity">
+            <span class="nav-icon">◷</span><span>Activity</span>
+          </button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="sidebar-service-note">
+            <span class="pulse-dot"></span>
+            <div><strong>Local environment</strong><small>Connected through your machine</small></div>
+          </div>
+          <button id="logout-button" class="profile-button">
+            <span id="user-avatar" class="avatar">K</span>
+            <span class="profile-copy"><strong id="user-name">Kubo user</strong><small id="user-email">Signed in</small></span>
+            <span class="profile-menu">···</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumbs"><span>Workspace</span><span class="crumb-slash">/</span><strong id="breadcrumb-view">Overview</strong></div>
+          <div class="topbar-actions">
+            <div class="connection-indicator"><span class="pulse-dot"></span><span id="connection-label">Checking services</span></div>
+            <button id="refresh-button" class="icon-button" aria-label="Refresh dashboard" title="Refresh">↻</button>
+            <span id="top-avatar" class="avatar avatar-small">K</span>
+          </div>
+        </header>
+
+        <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+        <section id="view-overview" class="view active">
+          <div class="page-heading heading-row">
+            <div>
+              <span class="eyebrow eyebrow-green">KUBO CLOUD CONSOLE</span>
+              <h1 id="greeting-heading">Your infrastructure, at a glance.</h1>
+              <p class="muted">A clear view of the services and resources in your workspace.</p>
+            </div>
+            <button class="button button-primary" data-open-create>
+              <span class="plus">+</span> Create compute
+            </button>
+          </div>
+
+          <div class="stat-grid">
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon icon-lime">▦</span><span class="stat-caption">IN THIS WORKSPACE</span></div>
+              <div id="stat-total" class="stat-value">—</div>
+              <div class="stat-label">Compute resources</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon icon-green">▶</span><span class="stat-caption">HEALTHY</span></div>
+              <div id="stat-running" class="stat-value">—</div>
+              <div class="stat-label">Running</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon icon-amber">◷</span><span class="stat-caption">IN PROGRESS</span></div>
+              <div id="stat-pending" class="stat-value">—</div>
+              <div class="stat-label">Pending operations</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-top"><span class="stat-icon icon-red">!</span><span class="stat-caption">NEEDS ATTENTION</span></div>
+              <div id="stat-failed" class="stat-value">—</div>
+              <div class="stat-label">Failed resources</div>
+            </article>
+          </div>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <div><span class="eyebrow">PLATFORM</span><h2>Services</h2></div>
+              <span class="section-hint">Only implemented services are shown</span>
+            </div>
+            <div class="service-grid">
+              <article class="service-card">
+                <div class="service-card-top">
+                  <span class="service-icon service-icon-iam">ID</span>
+                  <span id="iam-health" class="status-pill status-checking"><span class="status-dot"></span>Checking</span>
+                </div>
+                <h3>Identity &amp; Access</h3>
+                <p>Accounts, organizations and access decisions.</p>
+                <div class="service-meta"><span>IAM API</span><span>localhost:8001</span></div>
+              </article>
+              <article class="service-card">
+                <div class="service-card-top">
+                  <span class="service-icon service-icon-compute">⌘</span>
+                  <span id="compute-health" class="status-pill status-checking"><span class="status-dot"></span>Checking</span>
+                </div>
+                <h3>Compute</h3>
+                <p>Asynchronous lifecycle management for Docker workloads.</p>
+                <div class="service-meta"><span>Compute API</span><span>localhost:8000</span></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <div><span class="eyebrow">YOUR WORKSPACE</span><h2>Recent compute</h2></div>
+              <button class="text-button" data-navigate="compute">View all <span>→</span></button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>RESOURCE</th><th>IMAGE</th><th>PROFILE</th><th>STATUS</th><th>CREATED</th><th></th></tr></thead>
+                <tbody id="overview-compute-rows"></tbody>
+              </table>
+              <div id="overview-empty" class="empty-state" hidden>
+                <span class="empty-icon">▦</span>
+                <strong>No compute resources yet</strong>
+                <p>Create a compute resource to see it here.</p>
+                <button class="button button-secondary" data-open-create>Create your first compute</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <div class="section-heading">
+              <div><span class="eyebrow">LATEST</span><h2>Recent activity</h2></div>
+              <button class="text-button" data-navigate="activity">View activity <span>→</span></button>
+            </div>
+            <div id="overview-activity" class="activity-list"></div>
+          </section>
+        </section>
+
+        <section id="view-compute" class="view" hidden>
+          <div class="page-heading heading-row">
+            <div>
+              <span class="eyebrow eyebrow-green">COMPUTE</span>
+              <h1>Compute resources</h1>
+              <p class="muted">Create, inspect and manage workloads in your selected organization.</p>
+            </div>
+            <button class="button button-primary" data-open-create><span class="plus">+</span> Create compute</button>
+          </div>
+          <div class="filter-row">
+            <div class="search-box"><span>⌕</span><input id="compute-search" type="search" placeholder="Filter by name or image" aria-label="Filter compute resources"></div>
+            <span id="compute-result-count" class="muted small-text">0 resources</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>RESOURCE</th><th>IMAGE</th><th>PROFILE</th><th>STATUS</th><th>UPDATED</th><th>ACTIONS</th></tr></thead>
+              <tbody id="compute-rows"></tbody>
+            </table>
+            <div id="compute-empty" class="empty-state" hidden>
+              <span class="empty-icon">▦</span>
+              <strong>Nothing to see here yet</strong>
+              <p>Your compute resources will appear here after you create one.</p>
+              <button class="button button-secondary" data-open-create>Create compute</button>
+            </div>
+          </div>
+          <div class="load-more-wrap"><button id="load-more" class="button button-secondary" hidden>Load more resources</button></div>
+        </section>
+
+        <section id="view-identity" class="view" hidden>
+          <div class="page-heading heading-row">
+            <div><span class="eyebrow eyebrow-green">IDENTITY &amp; ACCESS</span><h1>Your workspace</h1><p class="muted">Manage the organizations available to your Kubo account.</p></div>
+            <button id="create-organization-button" class="button button-primary"><span class="plus">+</span> New organization</button>
+          </div>
+          <div class="identity-layout">
+            <article class="panel account-panel">
+              <div class="panel-heading"><div><span class="eyebrow">ACCOUNT</span><h2>Signed-in user</h2></div><span class="status-pill status-healthy"><span class="status-dot"></span>Authenticated</span></div>
+              <div class="account-row"><span id="identity-avatar" class="avatar avatar-large">K</span><div><strong id="identity-name">—</strong><p id="identity-email" class="muted">—</p></div></div>
+              <div class="account-note"><span class="note-icon">i</span><span>Your user token stays in memory in this tab and is not saved to local storage.</span></div>
+            </article>
+            <article class="panel organizations-panel">
+              <div class="panel-heading"><div><span class="eyebrow">ACCESS SCOPE</span><h2>Organizations</h2></div><span id="organization-count" class="count-badge">0</span></div>
+              <div id="organization-list" class="organization-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-activity" class="view" hidden>
+          <div class="page-heading">
+            <span class="eyebrow eyebrow-green">ACTIVITY</span>
+            <h1>Operation timeline</h1>
+            <p class="muted">Follow accepted lifecycle requests from this browser session.</p>
+          </div>
+          <div class="panel activity-panel">
+            <div class="panel-heading"><div><span class="eyebrow">COMPUTE OPERATIONS</span><h2>Recent operations</h2></div><span class="live-label"><span class="pulse-dot"></span>Auto-refreshing</span></div>
+            <div id="activity-list" class="activity-list activity-list-large"></div>
+            <div class="activity-footnote">The Compute API exposes operation lookup by ID, but not a full organization-wide operation list. This timeline tracks actions submitted from this browser session.</div>
+          </div>
+        </section>
+
+        <footer class="footer"><span>Kubo Cloud Console</span><span>Self-hosted. Local-first.</span></footer>
+      </main>
+    </div>
+
+    <dialog id="compute-dialog" class="modal">
+      <form id="compute-form" class="modal-card">
+        <div class="modal-heading">
+          <div><span class="eyebrow eyebrow-green">NEW RESOURCE</span><h2>Create compute</h2></div>
+          <button type="button" class="modal-close" data-close-dialog="compute-dialog" aria-label="Close">×</button>
+        </div>
+        <p class="muted">Choose an approved image and profile. Provisioning runs asynchronously.</p>
+        <label for="compute-name">Resource name</label>
+        <input id="compute-name" name="name" type="text" maxlength="120" placeholder="e.g. web-api" required>
+        <div class="form-grid">
+          <div><label for="compute-image">Approved image key</label><input id="compute-image" name="image" type="text" maxlength="64" value="approved-web" required></div>
+          <div><label for="compute-profile">Compute profile</label><input id="compute-profile" name="profile" type="text" maxlength="64" value="small" required></div>
+        </div>
+        <div class="inline-note"><span>i</span><p>Port mappings are not enabled in this test console yet. Create without ports to test lifecycle operations.</p></div>
+        <p id="compute-form-error" class="inline-error" role="alert" hidden></p>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close-dialog="compute-dialog">Cancel</button><button id="create-compute-submit" class="button button-primary" type="submit">Create resource</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="organization-dialog" class="modal">
+      <form id="organization-form" class="modal-card modal-card-narrow">
+        <div class="modal-heading">
+          <div><span class="eyebrow eyebrow-green">WORKSPACE</span><h2>New organization</h2></div>
+          <button type="button" class="modal-close" data-close-dialog="organization-dialog" aria-label="Close">×</button>
+        </div>
+        <p class="muted">Organizations keep resource access scoped to the right team.</p>
+        <label for="organization-name">Organization name</label>
+        <input id="organization-name" name="name" type="text" maxlength="120" placeholder="e.g. Platform team" required>
+        <p id="organization-form-error" class="inline-error" role="alert" hidden></p>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close-dialog="organization-dialog">Cancel</button><button class="button button-primary" type="submit">Create organization</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="resource-dialog" class="modal">
+      <div class="modal-card modal-card-narrow">
+        <div class="modal-heading">
+          <div><span class="eyebrow eyebrow-green">RESOURCE DETAILS</span><h2 id="resource-dialog-title">Compute</h2></div>
+          <button type="button" class="modal-close" data-close-dialog="resource-dialog" aria-label="Close">×</button>
+        </div>
+        <div id="resource-details" class="detail-grid"></div>
+        <div class="modal-actions"><button type="button" class="button button-secondary" data-close-dialog="resource-dialog">Close</button></div>
+      </div>
+    </dialog>
+
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+  </body>
+</html>

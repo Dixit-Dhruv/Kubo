@@ -20,6 +20,7 @@ def test_docker_provider_applies_limits_and_disables_networking_until_attachment
     client = Mock()
     client.images.get.return_value.id = "sha256:image-id"
     client.containers.create.return_value.id = "container-id"
+    client.containers.get.side_effect = NotFound("missing")
     provider = DockerProvider(client)
     image_reference = f"registry.example.com/kubo/web@sha256:{IMAGE_DIGEST}"
 
@@ -46,6 +47,7 @@ def test_docker_provider_pulls_missing_digest_pinned_image():
     client.images.get.side_effect = ImageNotFound("missing")
     client.images.pull.return_value.id = "sha256:image-id"
     client.containers.create.return_value.id = "container-id"
+    client.containers.get.side_effect = NotFound("missing")
     provider = DockerProvider(client)
     image_reference = f"registry.example.com/kubo/web@sha256:{IMAGE_DIGEST}"
 
@@ -58,6 +60,7 @@ def test_docker_provider_fails_without_storage_limit_when_create_is_rejected():
     client = Mock()
     client.images.get.return_value.id = "sha256:image-id"
     client.containers.create.side_effect = DockerException("storage option is unsupported")
+    client.containers.get.side_effect = NotFound("missing")
     provider = DockerProvider(client)
     image_reference = f"registry.example.com/kubo/web@sha256:{IMAGE_DIGEST}"
 
@@ -68,6 +71,35 @@ def test_docker_provider_fails_without_storage_limit_when_create_is_rejected():
     assert "unsupported" not in str(error.value)
     assert client.containers.create.call_count == 1
     assert client.containers.create.call_args.kwargs["storage_opt"] == {"size": "1073741824"}
+
+
+def test_docker_provider_reuses_matching_container_after_worker_restart():
+    client = Mock()
+    client.images.get.return_value.id = "sha256:image-id"
+    container = Mock()
+    container.id = "container-id"
+    container.attrs = {
+        "Config": {
+            "Image": "sha256:image-id",
+            "Labels": {"kubo.compute_id": str(COMPUTE_ID)},
+        },
+        "HostConfig": {
+            "NanoCpus": PROFILE.cpu_millicores * 1_000_000,
+            "Memory": PROFILE.memory_bytes,
+            "StorageOpt": {"size": str(PROFILE.ephemeral_storage_bytes)},
+        },
+    }
+    client.containers.get.return_value = container
+
+    container_id = DockerProvider(client).create(
+        COMPUTE_ID,
+        f"registry.example.com/kubo/web@sha256:{IMAGE_DIGEST}",
+        PROFILE,
+    )
+
+    assert container_id == "container-id"
+    client.containers.create.assert_not_called()
+    container.reload.assert_called_once_with()
 
 
 def test_docker_provider_maps_lifecycle_and_inspection_calls():

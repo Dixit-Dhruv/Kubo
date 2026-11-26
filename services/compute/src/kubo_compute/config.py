@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./compute.db"
     iam_url: str = "http://localhost:8001"
     service_token: str = ""
+    worker_service_token: str = ""
+    broker_url: str = ""
+    broker_queue: str = "kubo.compute.operations"
     image_catalog_path: Path = Path("config/images.json")
     profile_catalog_path: Path = Path("config/profiles.json")
 

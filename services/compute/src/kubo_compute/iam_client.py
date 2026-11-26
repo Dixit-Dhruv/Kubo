@@ -5,9 +5,16 @@ from fastapi import HTTPException, status
 
 
 class IAMClient:
-    def __init__(self, base_url: str, service_token: str, timeout: float = 5.0) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        service_token: str,
+        service_id: str = "compute-api",
+        timeout: float = 5.0,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._service_token = service_token
+        self._service_id = service_id
         self._client = httpx.Client(timeout=timeout)
 
     def close(self) -> None:
@@ -46,7 +53,7 @@ class IAMClient:
         if service_response.status_code != status.HTTP_200_OK:
             raise self._unavailable()
         try:
-            if service_response.json()["service_id"] != "compute-api":
+            if service_response.json()["service_id"] != self._service_id:
                 raise self._unavailable()
         except (KeyError, TypeError, ValueError) as exc:
             raise self._unavailable() from exc
