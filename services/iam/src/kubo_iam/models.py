@@ -18,6 +18,12 @@ class MembershipRole(StrEnum):
     MEMBER = "member"
 
 
+class BootstrapClaim(Base):
+    __tablename__ = "bootstrap_claims"
+
+    name: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+
 class User(Base):
     __tablename__ = "users"
 

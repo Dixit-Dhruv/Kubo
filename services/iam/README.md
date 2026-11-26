@@ -25,6 +25,11 @@ Create additional operator-provisioned accounts with `kubo-iam create-user --ema
 python -m pytest
 ```
 
+The API tests use in-memory SQLite by default. To run them against PostgreSQL, set
+`KUBO_IAM_TEST_DATABASE_URL` to a dedicated disposable test database before running pytest.
+The test fixture creates and drops the IAM tables, so do not point it at a development or
+production database.
+
 ## API
 
 See [IAM API contract](../../docs/architecture/iam-api.md). OpenAPI is available at `/docs` during development.

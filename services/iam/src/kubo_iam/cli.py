@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from kubo_iam.config import get_settings
 from kubo_iam.database import SessionLocal
-from kubo_iam.models import User
+from kubo_iam.models import BootstrapClaim, User
 from kubo_iam.security import hash_password, normalize_email
 
 SERVICE_ROOT = Path(os.environ.get("KUBO_IAM_SERVICE_ROOT", Path(__file__).resolve().parents[2]))
@@ -34,7 +34,12 @@ def prompt_for_password() -> str:
     return hash_password(password)
 
 
-def create_user(session: Session, email: str, is_platform_admin: bool = False) -> User:
+def create_user(
+    session: Session,
+    email: str,
+    password_hash: str,
+    is_platform_admin: bool = False,
+) -> User:
     try:
         normalized_email = normalize_email(validate_email(email, check_deliverability=False).normalized)
     except EmailNotValidError as exc:
@@ -45,7 +50,7 @@ def create_user(session: Session, email: str, is_platform_admin: bool = False) -
 
     user = User(
         email=normalized_email,
-        password_hash=prompt_for_password(),
+        password_hash=password_hash,
         is_platform_admin=is_platform_admin,
     )
     session.add(user)
@@ -63,7 +68,17 @@ def bootstrap_admin(email: str) -> None:
     with SessionLocal() as session:
         if session.scalar(select(User.id).limit(1)) is not None:
             raise ValueError("Bootstrap is only available before the first account is created.")
-        user = create_user(session, email, is_platform_admin=True)
+        password_hash = prompt_for_password()
+        session.add(BootstrapClaim(name="initial_admin"))
+        try:
+            session.flush()
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("Bootstrap is only available before the first account is created.") from exc
+        if session.scalar(select(User.id).limit(1)) is not None:
+            session.rollback()
+            raise ValueError("Bootstrap is only available before the first account is created.")
+        user = create_user(session, email, password_hash, is_platform_admin=True)
         print(f"Created initial platform administrator {user.email} ({user.id}).")
 
 
@@ -75,7 +90,7 @@ def add_user(email: str) -> None:
         )
         if has_platform_admin is None:
             raise ValueError("Create the initial platform administrator before adding users.")
-        user = create_user(session, email)
+        user = create_user(session, email, prompt_for_password())
         print(f"Created user {user.email} ({user.id}).")
 
 

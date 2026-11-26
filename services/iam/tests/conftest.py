@@ -1,3 +1,4 @@
+import os
 from itertools import count
 
 import pytest
@@ -12,7 +13,8 @@ _client_addresses = count(10)
 
 @pytest.fixture
 def test_context():
-    engine = make_engine("sqlite://")
+    database_url = os.environ.get("KUBO_IAM_TEST_DATABASE_URL", "sqlite://")
+    engine = make_engine(database_url)
     Base.metadata.create_all(engine)
     test_sessions = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
